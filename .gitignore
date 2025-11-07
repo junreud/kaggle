@@ -1,0 +1,22 @@
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments
+.env
+.venv
+venv/
+env/
+
+# Data files
+
+data/processed/
+data/submissions/
+
+# macOS
+.DS_Store
