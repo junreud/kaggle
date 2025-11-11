@@ -121,17 +121,17 @@ score = \frac{mean(strategy_returns)}{std(strategy_returns)} / vol_penalty
 
 # Phase 2 — 검증 스키마 & 커스텀 메트릭 (D-10, ~11/21)
 
-* [ ] `cv.py`: 시계열 K-Fold(예: 5), `embargo/purge` 구현
-  * [ ] fold 수, train/validation 기간 비율 명시 (예: 60/20/20)
-  * [ ] embargo 기간 설정 (예: 5일)
-* [ ] `metric.py`: Sharpe 변형 + vol_penalty + 언더퍼포먼스 패널티 함수 구현/유닛테스트
-  * [ ] Edge case 처리 (0 division, nan/inf 처리)
-  * [ ] 메트릭 검증 (알려진 값으로 유닛테스트)
-* [ ] 벤치마크에 메트릭 적용 → OOF 파이프라인 뼈대 점검
-* [ ] 백테스트 시뮬레이션 검증 (forward-looking bias 체크)
-* [ ] 트랜잭션 비용 고려 여부 결정 (turnover penalty 옵션)
+* [x] `cv.py`: 시계열 K-Fold(예: 5), `embargo/purge` 구현
+  * [x] fold 수, train/validation 기간 비율 명시 (예: 60/20/20)
+  * [x] embargo 기간 설정 (예: 5일)
+* [x] `metric.py`: Sharpe 변형 + vol_penalty + 언더퍼포먼스 패널티 함수 구현/유닛테스트
+  * [x] Edge case 처리 (0 division, nan/inf 처리)
+  * [x] 메트릭 검증 (알려진 값으로 유닛테스트)
+* [x] 벤치마크에 메트릭 적용 → OOF 파이프라인 뼈대 점검
+* [x] 백테스트 시뮬레이션 검증 (forward-looking bias 체크)
+* [x] 트랜잭션 비용 고려 여부 결정 (turnover penalty 옵션)
 
-**산출물:** OOF 평가 가능 스캐폴딩, 검증된 메트릭 함수
+**산출물:** OOF 평가 가능 스캐폴딩, 검증된 메트릭 함수, 백테스트 시뮬레이터
 
 # Phase 3 — 수익률 예측 모델(Return Regressor) (D-14, ~11/25)
 

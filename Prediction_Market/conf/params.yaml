@@ -140,13 +140,35 @@ ensemble:
   time_decay: 0.95
 
 # Evaluation Metrics
+metric:
+  # Volatility penalty threshold
+  vol_threshold: 1.2
+  # Apply underperformance penalty
+  underperformance_penalty: false
+  # Minimum periods for valid metric calculation
+  min_periods: 30
+  # Rolling window for time-series metrics (trading days)
+  rolling_window: 252  # ~1 year
+
+# Additional Metrics
 metrics:
   # Primary metric
   primary: "custom_sharpe"
-  # Volatility penalty threshold
+  # Volatility penalty threshold (deprecated, use metric.vol_threshold)
   vol_penalty_threshold: 1.2
-  # Underperformance check
+  # Underperformance check (deprecated, use metric.underperformance_penalty)
   check_underperformance: true
+
+# Backtesting Configuration
+backtest:
+  # Transaction cost in basis points (1 bp = 0.01%)
+  transaction_cost_bps: 5.0
+  # Slippage cost in basis points
+  slippage_bps: 2.0
+  # Forward-looking bias detection
+  check_bias: true
+  # Apply transaction costs in evaluation
+  apply_costs: true
 
 # Hyperparameter Optimization
 optuna:
