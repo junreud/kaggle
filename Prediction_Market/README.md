@@ -92,30 +92,30 @@ score = \frac{mean(strategy_returns)}{std(strategy_returns)} / vol_penalty
 
 # Phase 0 — 세팅 (오늘~내일, ~11/12)
 
-* [ ] Kaggle 노트북 템플릿 복사 및 런타임 테스트(인터넷 불가 확인, 8h 내 샘플 실행)
-* [ ] Kaggle API 설정 및 데이터 다운로드 자동화
-* [ ] 리포 구조 생성(`src/ data/ conf/ artifacts/ notebook/`)
-* [ ] Git 버전 관리 초기화 (.gitignore 설정: artifacts/, *.parquet, *.pkl)
-* [ ] 환경 설정 파일 생성 (requirements.txt, environment.yml)
-* [ ] `params.yaml` 기본 스켈레톤 생성(윈도우, 스케일러, CV 파라미터)
-* [ ] 랜덤시드/재현성 유틸 추가, 로깅/타이머 유틸 추가
-* [ ] 유닛테스트 프레임워크 설정 (pytest)
+* [x] Kaggle 노트북 템플릿 복사 및 런타임 테스트(인터넷 불가 확인, 8h 내 샘플 실행)
+* [x] Kaggle API 설정 및 데이터 다운로드 자동화
+* [x] 리포 구조 생성(`src/ data/ conf/ artifacts/ notebook/`)
+* [x] Git 버전 관리 초기화 (.gitignore 설정: artifacts/, *.parquet, *.pkl)
+* [x] 환경 설정 파일 생성 (requirements.txt, environment.yml)
+* [x] `params.yaml` 기본 스켈레톤 생성(윈도우, 스케일러, CV 파라미터)
+* [x] 랜덤시드/재현성 유틸 추가, 로깅/타이머 유틸 추가
+* [x] 유닛테스트 프레임워크 설정 (pytest)
 
 # Phase 1 — 데이터 정리 & EDA & 벤치마크 (D-4, ~11/15)
 
-* [ ] `data.py`: 로딩, `date_id` 정렬, 중복/누락 검사, 학습/검증 분할 기준 고정
-* [ ] 결측 전략 확정(그룹별: E/I/P forward-fill 제한 + 중앙값, M/V/S 롤링 계산 시 누출 방지)
-* [ ] 결측값 패턴 분석 (MCAR, MAR, MNAR 판별)
-* [ ] 이상치 탐지 및 처리 전략 (MAD, IQR 기준)
-* [ ] 그룹별 스케일링 설계(robust/z, 학습 구간에서만 적합)
-* [ ] 기본 벤치마크 계산(allocation=1 고정 → 커스텀 메트릭)
-* [ ] EDA 노트 작성:
-  * [ ] 피처 그룹별(M/E/I/P/V/S) 분포 및 기술통계
-  * [ ] 타겟 변수(`forward_returns`) 시계열 특성 (자기상관, 구조적 변화점)
-  * [ ] 피처 그룹 간 상관관계 분석 (히트맵)
-  * [ ] 데이터 기간별 regime 분석 (고/저 변동성 구간 식별)
-  * [ ] 학습/테스트 데이터 분포 차이 분석 (distribution shift)
-* [ ] 피처별 시간에 따른 안정성 검증 (non-stationarity 체크)
+* [x] `data.py`: 로딩, `date_id` 정렬, 중복/누락 검사, 학습/검증 분할 기준 고정
+* [x] 결측 전략 확정(그룹별: E/I/P forward-fill 제한 + 중앙값, M/V/S 롤링 계산 시 누출 방지)
+* [x] 결측값 패턴 분석 (MCAR, MAR, MNAR 판별)
+* [x] 이상치 탐지 및 처리 전략 (MAD, IQR 기준)
+* [x] 그룹별 스케일링 설계(robust/z, 학습 구간에서만 적합)
+* [x] 기본 벤치마크 계산(allocation=1 고정 → 커스텀 메트릭)
+* [x] EDA 노트 작성:
+  * [x] 피처 그룹별(M/E/I/P/V/S) 분포 및 기술통계
+  * [x] 타겟 변수(`forward_returns`) 시계열 특성 (자기상관, 구조적 변화점)
+  * [x] 피처 그룹 간 상관관계 분석 (히트맵)
+  * [x] 데이터 기간별 regime 분석 (고/저 변동성 구간 식별)
+  * [x] 학습/테스트 데이터 분포 차이 분석 (distribution shift)
+* [x] 피처별 시간에 따른 안정성 검증 (non-stationarity 체크)
 
 **산출물:** `00_eda.ipynb`, 벤치마크 점수, 데이터 품질 리포트
 

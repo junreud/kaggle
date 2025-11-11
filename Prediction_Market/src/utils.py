@@ -14,6 +14,38 @@ import numpy as np
 import yaml
 
 
+# Global logger instance - initialized once
+_logger_initialized = False
+_global_logger = None
+
+
+def get_logger(
+    log_file: Optional[str] = None,
+    level: str = "INFO",
+    format_str: Optional[str] = None
+) -> logging.Logger:
+    """
+    Get or create the global logger instance.
+    
+    This ensures only one logger is created and prevents duplicate handlers.
+    
+    Args:
+        log_file: Path to log file (optional, only used on first call)
+        level: Logging level (only used on first call)
+        format_str: Custom format string (optional, only used on first call)
+        
+    Returns:
+        Configured logger instance
+    """
+    global _logger_initialized, _global_logger
+    
+    if not _logger_initialized:
+        _global_logger = setup_logging(log_file, level, format_str)
+        _logger_initialized = True
+    
+    return _global_logger
+
+
 def set_seed(seed: int = 42) -> None:
     """
     Set random seed for reproducibility.
@@ -200,12 +232,16 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print("Config file not found (expected in test)")
     
-    # Test logging
-    logger = setup_logging(level="INFO")
+    # Test logging with global logger
+    logger = get_logger(log_file="logs/test_utils.log", level="INFO")
     logger.info("Test log message")
     
     # Test timer
     with Timer("Test operation", logger):
         time.sleep(0.1)
+    
+    # Test that getting logger again doesn't create duplicates
+    logger2 = get_logger()
+    logger2.info("Second logger call (should use same instance)")
     
     print("All tests completed!")
