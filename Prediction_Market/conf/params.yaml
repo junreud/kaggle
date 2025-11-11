@@ -1,0 +1,168 @@
+# Configuration for Hull Tactical Market Prediction
+
+# Random Seed
+seed: 42
+
+# Data Configuration
+data:
+  train_path: "data/raw/train.csv"
+  test_path: "data/raw/test.csv"
+  # Train/Validation split ratio
+  train_val_split: 0.8
+  # Date column
+  date_col: "date_id"
+
+# Feature Engineering
+features:
+  # Rolling window sizes
+  rolling_windows: [5, 10, 20, 40, 60]
+  # Lag features
+  lag_periods: [1, 2, 3, 5, 10]
+  # Feature groups
+  groups:
+    market: ["M*"]  # Market/Technical indicators
+    economic: ["E*"]  # Economic indicators
+    interest: ["I*"]  # Interest rate indicators
+    price: ["P*"]  # Price/Valuation indicators
+    volatility: ["V*"]  # Volatility indicators
+    sentiment: ["S*"]  # Sentiment indicators
+    dummy: ["D*"]  # Dummy/Event flags
+
+# Missing Value Handling
+missing:
+  # Forward fill limits (for E/I/P groups)
+  forward_fill_limit: 5
+  # Fallback strategy: 'median', 'mean', 'zero'
+  fallback_strategy: "median"
+
+# Scaling
+scaling:
+  # Scaler type: 'robust', 'standard', 'minmax'
+  scaler_type: "robust"
+  # Scale by feature groups
+  scale_by_group: true
+
+# Cross Validation
+cv:
+  # Number of folds
+  n_splits: 5
+  # Embargo period (days)
+  embargo: 5
+  # Purge overlapping periods
+  purge: true
+  # Train/validation ratio per fold
+  train_ratio: 0.8
+
+# Model Configuration - Return Predictor
+model_return:
+  lightgbm:
+    boosting_type: "gbdt"
+    objective: "regression"
+    metric: "rmse"
+    num_leaves: 31
+    learning_rate: 0.05
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    max_depth: -1
+    min_child_samples: 20
+    n_estimators: 1000
+    random_state: 42
+    verbosity: -1
+    early_stopping_rounds: 50
+  
+  catboost:
+    iterations: 1000
+    learning_rate: 0.05
+    depth: 6
+    l2_leaf_reg: 3
+    random_seed: 42
+    verbose: false
+    early_stopping_rounds: 50
+
+# Model Configuration - Risk Predictor
+model_risk:
+  # Risk label: rolling std window
+  risk_window: 20
+  lightgbm:
+    boosting_type: "gbdt"
+    objective: "regression"
+    metric: "rmse"
+    num_leaves: 31
+    learning_rate: 0.05
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    max_depth: -1
+    min_child_samples: 20
+    n_estimators: 1000
+    random_state: 42
+    verbosity: -1
+    early_stopping_rounds: 50
+
+# Position Mapping Strategy
+position:
+  # Strategy type: 'sharpe_scaling', 'quantile', 'vol_targeting'
+  strategy: "sharpe_scaling"
+  
+  # Sharpe scaling parameters
+  sharpe_scaling:
+    k: 1.0  # Scaling factor
+    b: 2.0  # Sensitivity parameter
+    eps: 1e-6  # Small constant to avoid division by zero
+  
+  # Quantile-based parameters
+  quantile:
+    n_bins: 7
+    allocations: [0.0, 0.3, 0.6, 1.0, 1.4, 1.7, 2.0]
+  
+  # Volatility targeting parameters
+  vol_targeting:
+    target_vol: 1.0  # Target volatility relative to market
+    max_daily_change: 0.3  # Maximum daily position change
+  
+  # Constraints
+  constraints:
+    min_allocation: 0.0
+    max_allocation: 2.0
+    max_vol_ratio: 1.2  # Max strategy_vol / market_vol
+    max_leverage_pct: 0.10  # Max 10% of days with 2x leverage
+
+# Ensemble Configuration
+ensemble:
+  # Ensemble method: 'weighted_average', 'stacking', 'blending'
+  method: "weighted_average"
+  # Model weights (must sum to 1.0)
+  weights:
+    lgbm: 0.6
+    catboost: 0.4
+  # Time-based weighting (give more weight to recent periods)
+  time_decay: 0.95
+
+# Evaluation Metrics
+metrics:
+  # Primary metric
+  primary: "custom_sharpe"
+  # Volatility penalty threshold
+  vol_penalty_threshold: 1.2
+  # Underperformance check
+  check_underperformance: true
+
+# Hyperparameter Optimization
+optuna:
+  n_trials: 100
+  timeout: 3600  # 1 hour
+  n_jobs: -1
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/experiment.log"
+
+# Paths
+paths:
+  artifacts: "artifacts/"
+  models: "models/"
+  submissions: "submissions/"
+  logs: "logs/"
