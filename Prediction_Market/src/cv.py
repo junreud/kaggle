@@ -112,11 +112,13 @@ class PurgedWalkForwardCV(BaseCrossValidator):
                 
             # Calculate training period
             train_start_idx = 0
-            train_end_idx = int(val_start_idx * self.train_ratio) if fold_idx > 0 else val_start_idx
+            # For walk-forward CV, use all data before validation period
+            train_end_idx = val_start_idx
             
             # Ensure we have enough training data
             if train_end_idx <= train_start_idx:
-                train_end_idx = val_start_idx
+                logger.warning(f"Fold {fold_idx + 1}: Not enough training data, skipping")
+                continue
             
             # Get date ranges
             train_dates = unique_dates[train_start_idx:train_end_idx]

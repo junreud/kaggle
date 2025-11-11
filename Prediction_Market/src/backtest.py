@@ -8,10 +8,17 @@ This module provides:
 - Detailed backtest reports
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from typing import Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from src.metric import CompetitionMetric, calculate_additional_metrics
 from src.utils import get_logger, load_config
@@ -78,7 +85,7 @@ class BacktestSimulator:
         Returns
         -------
         np.ndarray
-            Transaction costs for each period (as percentage)
+            Transaction costs for each period (as percentage %)
         """
         # Calculate position changes
         position_changes = np.abs(np.diff(allocations, prepend=allocations[0]))

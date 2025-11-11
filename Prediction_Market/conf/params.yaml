@@ -14,7 +14,7 @@ data:
 
 # Feature Engineering
 features:
-  # Rolling window sizes
+  # Rolling window sizes (in days)
   rolling_windows: [5, 10, 20, 40, 60]
   # Lag features
   lag_periods: [1, 2, 3, 5, 10]
@@ -30,7 +30,7 @@ features:
 
 # Missing Value Handling
 missing:
-  # Forward fill limits (for E/I/P groups)
+  # Forward fill limits (for E/I/P groups) (in days)
   forward_fill_limit: 5
   # Fallback strategy: 'median', 'mean', 'zero'
   fallback_strategy: "median"
@@ -163,18 +163,71 @@ metrics:
 backtest:
   # Transaction cost in basis points (1 bp = 0.01%)
   transaction_cost_bps: 5.0
-  # Slippage cost in basis points
+  # Slippage cost in basis points (1 bp = 0.01%)
   slippage_bps: 2.0
   # Forward-looking bias detection
   check_bias: true
   # Apply transaction costs in evaluation
   apply_costs: true
 
+# Hyperparameter Tuning Configuration
+tuning:
+  lightgbm:
+    # Fixed parameters (not tuned)
+    fixed_params:
+      boosting_type: "gbdt"
+      objective: "regression"
+      metric: "rmse"
+      verbosity: -1
+      random_state: 42
+    
+    # Parameter search space
+    param_space:
+      num_leaves:
+        type: "int"
+        low: 20
+        high: 100
+      learning_rate:
+        type: "float"
+        low: 0.01
+        high: 0.3
+        log: true
+      feature_fraction:
+        type: "float"
+        low: 0.6
+        high: 1.0
+      bagging_fraction:
+        type: "float"
+        low: 0.6
+        high: 1.0
+      bagging_freq:
+        type: "int"
+        low: 1
+        high: 10
+      min_child_samples:
+        type: "int"
+        low: 10
+        high: 100
+      max_depth:
+        type: "int"
+        low: 3
+        high: 12
+      reg_alpha:
+        type: "float"
+        low: 0.00000001
+        high: 10.0
+        log: true
+      reg_lambda:
+        type: "float"
+        low: 0.00000001
+        high: 10.0
+        log: true
+
 # Hyperparameter Optimization
 optuna:
-  n_trials: 100
+  n_trials: 100  # Number of optimization trials
   timeout: 3600  # 1 hour
-  n_jobs: -1
+  n_jobs: -1     # Use all available cores
 
 # Logging
 logging:

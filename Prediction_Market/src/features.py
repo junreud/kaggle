@@ -1,0 +1,727 @@
+"""
+Feature engineering module for Hull Tactical Market Prediction.
+
+This module provides comprehensive feature engineering including:
+- Group-based derived features (rolling stats, deviations, volatility)
+- Lag features (1-5 days)
+- Difference features (changes, acceleration)
+- Interaction features (M*×V*, I*×P*)
+- Domain-specific features (momentum, RSI-like, Bollinger Bands)
+"""
+
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from typing import List, Dict, Optional, Tuple
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import RobustScaler, StandardScaler, MinMaxScaler
+
+from src.utils import get_logger, load_config, Timer
+
+logger = get_logger(log_file="logs/features.log", level="INFO")
+
+
+class FeatureEngineering:
+    """
+    Feature engineering pipeline for market prediction.
+    
+    Features:
+    - Rolling statistics (mean, std, min, max)
+    - Lag features with leakage prevention
+    - Difference and acceleration features
+    - Interaction features between groups
+    - Domain-specific technical indicators
+    """
+    
+    def __init__(self, config_path: str = "conf/params.yaml"):
+        """
+        Initialize feature engineering pipeline.
+        
+        Parameters
+        ----------
+        config_path : str
+            Path to configuration file
+        """
+        self.config = load_config(config_path)
+        self.feature_config = self.config.get('features', {})
+        
+        # Feature groups
+        self.feature_groups = self.feature_config.get('groups', {})
+        
+        # Rolling windows
+        self.rolling_windows = self.feature_config.get('rolling_windows', [5, 10, 20, 40, 60])
+        
+        # Lag periods
+        self.lag_periods = self.feature_config.get('lag_periods', [1, 2, 3, 5, 10])
+        
+        # Scaler
+        scaler_type = self.config.get('scaling', {}).get('scaler_type', 'robust')
+        self.scaler = self._get_scaler(scaler_type)
+        
+        # Feature names tracking
+        self.original_features = []
+        self.engineered_features = []
+        
+        logger.info("Feature Engineering initialized")
+        logger.info(f"Rolling windows: {self.rolling_windows}")
+        logger.info(f"Lag periods: {self.lag_periods}")
+        logger.info(f"Scaler type: {scaler_type}")
+    
+    def _get_scaler(self, scaler_type: str):
+        """Get scaler instance based on type."""
+        scalers = {
+            'robust': RobustScaler(),
+            'standard': StandardScaler(),
+            'minmax': MinMaxScaler()
+        }
+        return scalers.get(scaler_type, RobustScaler())
+    
+    def _get_feature_columns(self, df: pd.DataFrame, pattern: str) -> List[str]:
+        """
+        Get column names matching a pattern.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        pattern : str
+            Pattern to match (e.g., "M*", "E*")
+            
+        Returns
+        -------
+        List[str]
+            Matching column names
+        """
+        if pattern.endswith('*'):
+            prefix = pattern[:-1]
+            return [col for col in df.columns if col.startswith(prefix)]
+        return []
+    
+    def create_rolling_features(
+        self,
+        df: pd.DataFrame,
+        columns: List[str],
+        windows: Optional[List[int]] = None
+    ) -> pd.DataFrame:
+        """
+        Create rolling statistics features.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe (must be sorted by date)
+        columns : List[str]
+            Columns to create rolling features for
+        windows : List[int], optional
+            Rolling window sizes (default: from config)
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with rolling features added
+        """
+        if windows is None:
+            windows = self.rolling_windows
+        
+        df_new = df.copy()
+        
+        for col in columns:
+            if col not in df.columns:
+                logger.warning(f"Column {col} not found, skipping")
+                continue
+            
+            for window in windows:
+                # Rolling mean
+                df_new[f'{col}_roll_mean_{window}'] = df[col].rolling(
+                    window=window, min_periods=1
+                ).mean()
+                
+                # Rolling std
+                df_new[f'{col}_roll_std_{window}'] = df[col].rolling(
+                    window=window, min_periods=1
+                ).std()
+                
+                # Rolling min/max
+                df_new[f'{col}_roll_min_{window}'] = df[col].rolling(
+                    window=window, min_periods=1
+                ).min()
+                
+                df_new[f'{col}_roll_max_{window}'] = df[col].rolling(
+                    window=window, min_periods=1
+                ).max()
+                
+                # Deviation from rolling mean
+                df_new[f'{col}_dev_{window}'] = (
+                    df[col] - df_new[f'{col}_roll_mean_{window}']
+                )
+                
+                # Z-score
+                std_col = df_new[f'{col}_roll_std_{window}']
+                df_new[f'{col}_zscore_{window}'] = np.where(
+                    std_col > 0,
+                    df_new[f'{col}_dev_{window}'] / std_col,
+                    0
+                )
+        
+        logger.info(f"Created rolling features for {len(columns)} columns")
+        return df_new
+    
+    def create_lag_features(
+        self,
+        df: pd.DataFrame,
+        columns: List[str],
+        lags: Optional[List[int]] = None
+    ) -> pd.DataFrame:
+        """
+        Create lag features with leakage prevention.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe (must be sorted by date)
+        columns : List[str]
+            Columns to create lag features for
+        lags : List[int], optional
+            Lag periods (default: from config)
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with lag features added
+        """
+        if lags is None:
+            lags = self.lag_periods
+        
+        df_new = df.copy()
+        
+        for col in columns:
+            if col not in df.columns:
+                logger.warning(f"Column {col} not found, skipping")
+                continue
+            
+            for lag in lags:
+                df_new[f'{col}_lag_{lag}'] = df[col].shift(lag)
+        
+        logger.info(f"Created lag features for {len(columns)} columns")
+        return df_new
+    
+    def create_difference_features(
+        self,
+        df: pd.DataFrame,
+        columns: List[str],
+        periods: Optional[List[int]] = None
+    ) -> pd.DataFrame:
+        """
+        Create difference and acceleration features.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe (must be sorted by date)
+        columns : List[str]
+            Columns to create difference features for
+        periods : List[int], optional
+            Difference periods (default: [1, 5, 10])
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with difference features added
+        """
+        if periods is None:
+            periods = [1, 5, 10]
+        
+        df_new = df.copy()
+        
+        for col in columns:
+            if col not in df.columns:
+                logger.warning(f"Column {col} not found, skipping")
+                continue
+            
+            for period in periods:
+                # First difference (change)
+                df_new[f'{col}_diff_{period}'] = df[col].diff(period)
+                
+                # Percent change
+                df_new[f'{col}_pct_{period}'] = df[col].pct_change(period)
+                
+                # Second difference (acceleration)
+                if period == 1:
+                    df_new[f'{col}_accel'] = df_new[f'{col}_diff_1'].diff(1)
+        
+        logger.info(f"Created difference features for {len(columns)} columns")
+        return df_new
+    
+    def create_interaction_features(
+        self,
+        df: pd.DataFrame,
+        group_pairs: Optional[List[Tuple[str, str]]] = None
+    ) -> pd.DataFrame:
+        """
+        Create interaction features between feature groups.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        group_pairs : List[Tuple[str, str]], optional
+            Pairs of feature group patterns to create interactions
+            (default: [("M*", "V*"), ("I*", "P*")])
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with interaction features added
+        """
+        if group_pairs is None:
+            group_pairs = [("M*", "V*"), ("I*", "P*"), ("E*", "S*")]
+        
+        df_new = df.copy()
+        
+        for pattern1, pattern2 in group_pairs:
+            cols1 = self._get_feature_columns(df, pattern1)
+            cols2 = self._get_feature_columns(df, pattern2)
+            
+            # Sample a few interactions to avoid explosion
+            # Take first 3 from each group
+            cols1_sample = cols1[:3]
+            cols2_sample = cols2[:3]
+            
+            for col1 in cols1_sample:
+                for col2 in cols2_sample:
+                    # Multiplication
+                    df_new[f'{col1}_x_{col2}'] = df[col1] * df[col2]
+                    
+                    # Ratio (with safety check)
+                    df_new[f'{col1}_div_{col2}'] = np.where(
+                        np.abs(df[col2]) > 1e-6,
+                        df[col1] / df[col2],
+                        0
+                    )
+        
+        logger.info(f"Created interaction features for {len(group_pairs)} group pairs")
+        return df_new
+    
+    def create_technical_features(
+        self,
+        df: pd.DataFrame,
+        price_cols: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """
+        Create domain-specific technical indicators.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe (must be sorted by date)
+        price_cols : List[str], optional
+            Price-like columns to calculate indicators for
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with technical features added
+        """
+        df_new = df.copy()
+        
+        # If no price columns specified, use P* group
+        if price_cols is None:
+            price_cols = self._get_feature_columns(df, "P*")[:5]  # Sample 5
+        
+        for col in price_cols:
+            if col not in df.columns:
+                continue
+            
+            # RSI-like indicator
+            delta = df[col].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+            rs = gain / (loss + 1e-6)
+            df_new[f'{col}_rsi'] = 100 - (100 / (1 + rs))
+            
+            # Momentum (rate of change)
+            df_new[f'{col}_momentum_10'] = df[col].pct_change(10)
+            df_new[f'{col}_momentum_20'] = df[col].pct_change(20)
+            
+            # Bollinger Bands
+            rolling_mean = df[col].rolling(window=20, min_periods=1).mean()
+            rolling_std = df[col].rolling(window=20, min_periods=1).std()
+            
+            df_new[f'{col}_bb_upper'] = rolling_mean + 2 * rolling_std
+            df_new[f'{col}_bb_lower'] = rolling_mean - 2 * rolling_std
+            df_new[f'{col}_bb_width'] = (df_new[f'{col}_bb_upper'] - df_new[f'{col}_bb_lower']) / (rolling_mean + 1e-6)
+            df_new[f'{col}_bb_position'] = (df[col] - df_new[f'{col}_bb_lower']) / (df_new[f'{col}_bb_upper'] - df_new[f'{col}_bb_lower'] + 1e-6)
+        
+        logger.info(f"Created technical features for {len(price_cols)} columns")
+        return df_new
+    
+    def create_regime_features(
+        self,
+        df: pd.DataFrame,
+        volatility_cols: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """
+        Create regime classification features.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        volatility_cols : List[str], optional
+            Volatility columns to use for regime detection
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with regime features added
+        """
+        df_new = df.copy()
+        
+        # If no volatility columns specified, use V* group
+        if volatility_cols is None:
+            volatility_cols = self._get_feature_columns(df, "V*")[:3]  # Sample 3
+        
+        for col in volatility_cols:
+            if col not in df.columns:
+                continue
+            
+            # Calculate percentiles
+            rolling_pct = df[col].rolling(window=60, min_periods=1).apply(
+                lambda x: pd.Series(x).rank(pct=True).iloc[-1]
+            )
+            
+            # High/Low volatility regime
+            df_new[f'{col}_high_vol'] = (rolling_pct > 0.75).astype(int)
+            df_new[f'{col}_low_vol'] = (rolling_pct < 0.25).astype(int)
+        
+        logger.info(f"Created regime features for {len(volatility_cols)} columns")
+        return df_new
+    
+    def fit_transform(
+        self,
+        df: pd.DataFrame,
+        date_col: str = 'date_id'
+    ) -> pd.DataFrame:
+        """
+        Full feature engineering pipeline.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        date_col : str
+            Date column name for sorting
+            
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with all engineered features
+        """
+        logger.info("="*80)
+        logger.info("Starting Feature Engineering Pipeline")
+        logger.info("="*80)
+        
+        # Sort by date
+        df_sorted = df.sort_values(date_col).reset_index(drop=True)
+        
+        # Store original feature names
+        self.original_features = [col for col in df_sorted.columns if col not in [date_col, 'forward_returns']]
+        
+        with Timer("Feature Engineering", logger=logger):
+            # Get feature columns by group
+            m_cols = self._get_feature_columns(df_sorted, "M*")
+            e_cols = self._get_feature_columns(df_sorted, "E*")
+            p_cols = self._get_feature_columns(df_sorted, "P*")
+            v_cols = self._get_feature_columns(df_sorted, "V*")
+            s_cols = self._get_feature_columns(df_sorted, "S*")
+            
+            logger.info(f"\nOriginal features by group:")
+            logger.info(f"  M (Market): {len(m_cols)} features")
+            logger.info(f"  E (Economic): {len(e_cols)} features")
+            logger.info(f"  P (Price): {len(p_cols)} features")
+            logger.info(f"  V (Volatility): {len(v_cols)} features")
+            logger.info(f"  S (Sentiment): {len(s_cols)} features")
+            
+            # 1. Rolling features (for M, V groups)
+            logger.info("\n1. Creating rolling features...")
+            df_sorted = self.create_rolling_features(df_sorted, m_cols[:5] + v_cols[:3])
+            
+            # 2. Lag features (all groups)
+            logger.info("\n2. Creating lag features...")
+            df_sorted = self.create_lag_features(df_sorted, m_cols[:5] + e_cols[:3] + p_cols[:3])
+            
+            # 3. Difference features (M, P groups)
+            logger.info("\n3. Creating difference features...")
+            df_sorted = self.create_difference_features(df_sorted, m_cols[:5] + p_cols[:3])
+            
+            # 4. Interaction features
+            logger.info("\n4. Creating interaction features...")
+            df_sorted = self.create_interaction_features(df_sorted)
+            
+            # 5. Technical features
+            logger.info("\n5. Creating technical features...")
+            df_sorted = self.create_technical_features(df_sorted)
+            
+            # 6. Regime features
+            logger.info("\n6. Creating regime features...")
+            df_sorted = self.create_regime_features(df_sorted)
+        
+        # Track engineered features
+        self.engineered_features = [
+            col for col in df_sorted.columns 
+            if col not in self.original_features and col not in [date_col, 'forward_returns']
+        ]
+        
+        logger.info(f"\n✓ Feature engineering complete!")
+        logger.info(f"  Original features: {len(self.original_features)}")
+        logger.info(f"  Engineered features: {len(self.engineered_features)}")
+        logger.info(f"  Total features: {len(df_sorted.columns) - 2}")  # Exclude date and target
+        
+        return df_sorted
+    
+    def transform(
+        self,
+        df: pd.DataFrame,
+        date_col: str = 'date_id'
+    ) -> pd.DataFrame:
+        """
+        Apply feature engineering to new data (same as fit_transform for now).
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        date_col : str
+            Date column name
+            
+        Returns
+        -------
+        pd.DataFrame
+            Transformed dataframe
+        """
+        return self.fit_transform(df, date_col)
+    
+    def select_features_by_importance(
+        self,
+        df: pd.DataFrame,
+        target_col: str = 'forward_returns',
+        method: str = 'correlation',
+        top_n: Optional[int] = None,
+        threshold: Optional[float] = None
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Select features based on importance.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe with features
+        target_col : str
+            Target column name
+        method : str
+            Selection method: 'correlation', 'variance', 'mutual_info'
+        top_n : int, optional
+            Select top N features
+        threshold : float, optional
+            Select features above threshold
+            
+        Returns
+        -------
+        Tuple[pd.DataFrame, List[str]]
+            (Filtered dataframe, Selected feature names)
+        """
+        logger.info("="*80)
+        logger.info("Feature Selection")
+        logger.info("="*80)
+        logger.info(f"Method: {method}")
+        logger.info(f"Top N: {top_n}")
+        logger.info(f"Threshold: {threshold}")
+        
+        # Get feature columns (exclude date and target)
+        feature_cols = [
+            col for col in df.columns 
+            if col not in ['date_id', target_col, 'risk_free_rate', 
+                          'market_forward_excess_returns']
+        ]
+        
+        logger.info(f"\nTotal features to evaluate: {len(feature_cols)}")
+        
+        # Calculate importance scores
+        if method == 'correlation':
+            # Absolute correlation with target
+            scores = df[feature_cols + [target_col]].corr()[target_col].abs()
+            scores = scores[scores.index != target_col].sort_values(ascending=False)
+        
+        elif method == 'variance':
+            # Variance-based (remove low-variance features)
+            variances = df[feature_cols].var()
+            scores = variances.sort_values(ascending=False)
+        
+        elif method == 'mutual_info':
+            from sklearn.feature_selection import mutual_info_regression
+            
+            # Handle NaN values
+            df_clean = df[feature_cols + [target_col]].dropna()
+            
+            if len(df_clean) < 100:
+                logger.warning("Too few samples after removing NaN, using correlation instead")
+                scores = df[feature_cols + [target_col]].corr()[target_col].abs()
+                scores = scores[scores.index != target_col].sort_values(ascending=False)
+            else:
+                mi_scores = mutual_info_regression(
+                    df_clean[feature_cols], 
+                    df_clean[target_col],
+                    random_state=42
+                )
+                scores = pd.Series(mi_scores, index=feature_cols).sort_values(ascending=False)
+        
+        else:
+            raise ValueError(f"Unknown method: {method}")
+        
+        # Select features
+        if top_n is not None:
+            selected_features = scores.head(top_n).index.tolist()
+            logger.info(f"\n✓ Selected top {top_n} features")
+        elif threshold is not None:
+            selected_features = scores[scores >= threshold].index.tolist()
+            logger.info(f"\n✓ Selected {len(selected_features)} features above threshold {threshold}")
+        else:
+            # Default: select top 100 or all if less
+            top_n = min(100, len(scores))
+            selected_features = scores.head(top_n).index.tolist()
+            logger.info(f"\n✓ Selected top {top_n} features (default)")
+        
+        # Log top features
+        logger.info(f"\nTop 20 features by {method}:")
+        for feat, score in scores.head(20).items():
+            logger.info(f"  {feat}: {score:.4f}")
+        
+        # Keep date, target, and selected features
+        keep_cols = ['date_id', target_col] + selected_features
+        if 'risk_free_rate' in df.columns:
+            keep_cols.insert(2, 'risk_free_rate')
+        if 'market_forward_excess_returns' in df.columns:
+            keep_cols.insert(2, 'market_forward_excess_returns')
+        
+        df_selected = df[keep_cols].copy()
+        
+        logger.info(f"\n✓ Feature selection complete")
+        logger.info(f"  Selected features: {len(selected_features)}")
+        logger.info(f"  Dataframe shape: {df_selected.shape}")
+        
+        return df_selected, selected_features
+    
+    def remove_correlated_features(
+        self,
+        df: pd.DataFrame,
+        threshold: float = 0.95,
+        target_col: str = 'forward_returns'
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Remove highly correlated features.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe
+        threshold : float
+            Correlation threshold (default: 0.95)
+        target_col : str
+            Target column name
+            
+        Returns
+        -------
+        Tuple[pd.DataFrame, List[str]]
+            (Filtered dataframe, Removed feature names)
+        """
+        logger.info("="*80)
+        logger.info("Removing Correlated Features")
+        logger.info("="*80)
+        logger.info(f"Threshold: {threshold}")
+        
+        # Get feature columns
+        feature_cols = [
+            col for col in df.columns 
+            if col not in ['date_id', target_col, 'risk_free_rate', 
+                          'market_forward_excess_returns']
+        ]
+        
+        # Calculate correlation matrix
+        corr_matrix = df[feature_cols].corr().abs()
+        
+        # Find highly correlated pairs
+        upper_tri = corr_matrix.where(
+            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
+        )
+        
+        # Features to remove
+        to_remove = []
+        
+        for column in upper_tri.columns:
+            if any(upper_tri[column] > threshold):
+                # Get correlation with target
+                if target_col in df.columns:
+                    target_corr = abs(df[[column, target_col]].corr().iloc[0, 1])
+                    
+                    # Find correlated features
+                    correlated = upper_tri.index[upper_tri[column] > threshold].tolist()
+                    
+                    for corr_feat in correlated:
+                        corr_target_corr = abs(df[[corr_feat, target_col]].corr().iloc[0, 1])
+                        
+                        # Remove the one with lower target correlation
+                        if target_corr < corr_target_corr:
+                            if column not in to_remove:
+                                to_remove.append(column)
+                        else:
+                            if corr_feat not in to_remove:
+                                to_remove.append(corr_feat)
+                else:
+                    # No target, just remove one of the pair
+                    if column not in to_remove:
+                        to_remove.append(column)
+        
+        # Remove duplicates
+        to_remove = list(set(to_remove))
+        
+        logger.info(f"\n✓ Found {len(to_remove)} highly correlated features to remove")
+        
+        if len(to_remove) > 0:
+            logger.info(f"\nRemoving features (sample):")
+            for feat in to_remove[:10]:
+                logger.info(f"  {feat}")
+        
+        # Remove features
+        keep_cols = [col for col in df.columns if col not in to_remove]
+        df_filtered = df[keep_cols].copy()
+        
+        logger.info(f"\n✓ Correlation filtering complete")
+        logger.info(f"  Removed features: {len(to_remove)}")
+        logger.info(f"  Remaining features: {len(keep_cols) - 2}")  # Exclude date and target
+        
+        return df_filtered, to_remove
+
+
+def create_feature_engineering(
+    config_path: str = "conf/params.yaml"
+) -> FeatureEngineering:
+    """
+    Factory function to create feature engineering instance.
+    
+    Parameters
+    ----------
+    config_path : str
+        Path to configuration file
+        
+    Returns
+    -------
+    FeatureEngineering
+        Configured instance
+    """
+    return FeatureEngineering(config_path)

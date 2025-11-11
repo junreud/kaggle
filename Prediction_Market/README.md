@@ -135,20 +135,20 @@ score = \frac{mean(strategy_returns)}{std(strategy_returns)} / vol_penalty
 
 # Phase 3 — 수익률 예측 모델(Return Regressor) (D-14, ~11/25)
 
-* [ ] `features.py`: 피처 엔지니어링
-  * [ ] 그룹별 파생 피처 (롤링 리턴/乖離/vol, 레짐 플래그, D* 이벤트)
-  * [ ] 시차 피처 (lag 1~5일)
-  * [ ] 차분 피처 (변화율, 가속도)
-  * [ ] 상호작용 피처 (M*×V*, I*×P* 등)
-  * [ ] 도메인 특화 피처 (모멘텀, RSI-like, 볼린저 밴드 등)
-* [ ] 피처 중요도 분석 및 선택 (상위 N개 선택 또는 임계값 기반)
-* [ ] `models.py`: LGBM(1) + CatBoost(옵션) 기본 모델 훈련
-  * [ ] 하이퍼파라미터 튜닝 전략 (Optuna 또는 Grid Search)
-  * [ ] Early stopping 설정
-* [ ] 시계열 CV로 OOF 예측(`r_hat`) 생성/저장
-* [ ] OOF 기준 성능 리포트(최근 구간 가중 평균도 병기)
-* [ ] 모델 해석 가능성 확보 (SHAP values, feature importance)
-* [ ] 예측 불확실성 정량화 (prediction intervals)
+* [x] `features.py`: 피처 엔지니어링
+  * [x] 그룹별 파생 피처 (롤링 리턴/乖離/vol, 레짐 플래그, D* 이벤트)
+  * [x] 시차 피처 (lag 1~5일)
+  * [x] 차분 피처 (변화율, 가속도)
+  * [x] 상호작용 피처 (M*×V*, I*×P* 등)
+  * [x] 도메인 특화 피처 (모멘텀, RSI-like, 볼린저 밴드 등)
+* [x] 피처 중요도 분석 및 선택 (상위 N개 선택 또는 임계값 기반)
+* [x] `models.py`: LGBM(1) + CatBoost(옵션) 기본 모델 훈련
+  * [x] 하이퍼파라미터 튜닝 전략 (Optuna 또는 Grid Search)
+  * [x] Early stopping 설정
+* [x] 시계열 CV로 OOF 예측(`r_hat`) 생성/저장
+* [x] OOF 기준 성능 리포트(최근 구간 가중 평균도 병기)
+* [x] 모델 해석 가능성 확보 (SHAP values, feature importance)
+* [x] 예측 불확실성 정량화 (prediction intervals)
 
 **산출물:** `artifacts/oof_r_hat.parquet`, 피처 중요도 리포트
 
