@@ -154,26 +154,26 @@ score = \frac{mean(strategy_returns)}{std(strategy_returns)} / vol_penalty
 
 # Phase 4 — 리스크 예측 모델(Risk Forecaster) (D-18, ~11/29)
 
-* [ ] 리스크 라벨 정의: `roll_std(forward_returns, N=20)` 미래값을 예측하도록 라벨링
-* [ ] LGBM 기반 리스크 회귀(간단) + (옵션) GARCH-lite
-* [ ] 앙상블 분산(모델 간 편차) 추정도 비교
-* [ ] OOF `sigma_hat` 산출/저장, 캘리브레이션 체크
-* [ ] 극단 시장 상황(Black Swan) 대응 전략 설계
-* [ ] 실시간 리스크 모니터링 지표 (rolling Sharpe, Calmar ratio)
+* [x] 리스크 라벨 정의: `roll_std(forward_returns, N=20)` 미래값을 예측하도록 라벨링
+* [x] LGBM 기반 리스크 회귀(간단) + (옵션) GARCH-lite
+* [x] 앙상블 분산(모델 간 편차) 추정도 비교
+* [x] OOF `sigma_hat` 산출/저장, 캘리브레이션 체크
+* [x] 극단 시장 상황(Black Swan) 대응 전략 설계
+* [x] 실시간 리스크 모니터링 지표 (rolling Sharpe, Calmar ratio)
 
 **산출물:** `artifacts/oof_sigma_hat.parquet`, 리스크 모델 캘리브레이션 리포트
 
 # Phase 5 — 포지션 매핑 & 리스크 제어 (핵심) (D-22, ~12/03)
 
-* [ ] 전략1: Sharpe 스케일링 `a=clip(1+k*tanh(b*r_hat/(sigma_hat+eps)),0,2)`
-* [ ] 전략2: 퀀타일 계단형(z=r_hat/sigma_hat, 5~7구간 a값 최적화)
-* [ ] 전략3: 볼 타깃팅 + 일일 변화폭 제한(Δ=0.3)
-* [ ] 전략4: 시장 레짐별 포지션 조정 (VIX 등 공포지수 활용)
-* [ ] 전략5: 연속 손실 시 포지션 축소 로직 (drawdown-based allocation)
-* [ ] OOF에서 **커스텀 메트릭 최대화**로 `k,b`/구간 a/Δ 탐색
-* [ ] 제약 체크: `σ_strategy/σ_market ≤ 1.2` **유지율 ≥ 98%**
-* [ ] 2배 레버리지 사용 비중 ≤ 5~10% 모니터링
-* [ ] 다양한 전략 비교 및 앙상블 가능성 검토
+* [x] 전략1: Sharpe 스케일링 `a=clip(1+k*tanh(b*r_hat/(sigma_hat+eps)),0,2)`
+* [x] 전략2: 퀀타일 계단형(z=r_hat/sigma_hat, 5~7구간 a값 최적화)
+* [x] 전략3: 볼 타깃팅 + 일일 변화폭 제한(Δ=0.3)
+* [x] 전략4: 시장 레짐별 포지션 조정 (VIX 등 공포지수 활용)
+* [x] 전략5: 연속 손실 시 포지션 축소 로직 (drawdown-based allocation)
+* [x] OOF에서 **커스텀 메트릭 최대화**로 `k,b`/구간 a/Δ 탐색
+* [x] 제약 체크: `σ_strategy/σ_market ≤ 1.2` **유지율 ≥ 98%**
+* [x] 2배 레버리지 사용 비중 ≤ 5~10% 모니터링
+* [x] 다양한 전략 비교 및 앙상블 가능성 검토
 
 **산출물:** `position.py` 최종 로직, 튠된 하이퍼파라미터, 전략 비교 리포트
 
