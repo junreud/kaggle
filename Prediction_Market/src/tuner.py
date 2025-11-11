@@ -47,6 +47,7 @@ class OptunaLightGBMTuner:
     def __init__(
         self,
         config_path: str = "conf/params.yaml",
+        config_section: str = "tuning",
         n_trials: int = 100,
         timeout: Optional[int] = None,
         n_jobs: int = 1,
@@ -59,6 +60,8 @@ class OptunaLightGBMTuner:
         ----------
         config_path : str
             Path to configuration file
+        config_section : str
+            Config section to use ('tuning' for return model, 'risk' for risk model)
         n_trials : int
             Number of optimization trials
         timeout : int, optional
@@ -69,6 +72,7 @@ class OptunaLightGBMTuner:
             Random seed
         """
         self.config = load_config(config_path)
+        self.config_section = config_section
         self.n_trials = n_trials
         self.timeout = timeout
         self.n_jobs = n_jobs
@@ -77,8 +81,12 @@ class OptunaLightGBMTuner:
         # CV strategy
         self.cv_strategy = create_cv_strategy(config_path)
         
-        # Tuning configuration
-        tuning_config = self.config.get('tuning', {}).get('lightgbm', {})
+        # Tuning configuration - support both 'tuning' and 'risk' sections
+        if config_section == 'risk':
+            tuning_config = self.config.get('risk', {}).get('lightgbm', {})
+        else:
+            tuning_config = self.config.get('tuning', {}).get('lightgbm', {})
+        
         self.param_space = tuning_config.get('param_space', {})
         self.fixed_params = tuning_config.get('fixed_params', {})
         
@@ -87,7 +95,7 @@ class OptunaLightGBMTuner:
         self.best_params = None
         self.best_score = None
         
-        logger.info("OptunaLightGBMTuner initialized")
+        logger.info(f"OptunaLightGBMTuner initialized (config_section={config_section})")
         logger.info(f"Trials: {n_trials}, Timeout: {timeout}, Jobs: {n_jobs}")
     
     def _get_param_space(self, trial: optuna.Trial) -> Dict[str, Any]:
@@ -167,7 +175,7 @@ class OptunaLightGBMTuner:
         trial: optuna.Trial,
         df: pd.DataFrame,
         feature_cols: List[str],
-        target_col: str = 'forward_returns'
+        target_col: str
     ) -> float:
         """
         Objective function for Optuna.
@@ -181,7 +189,7 @@ class OptunaLightGBMTuner:
         feature_cols : list
             List of feature column names
         target_col : str
-            Target column name
+            Target column name (e.g., 'forward_returns' or 'risk_label')
             
         Returns
         -------
@@ -249,7 +257,7 @@ class OptunaLightGBMTuner:
         self,
         df: pd.DataFrame,
         feature_cols: List[str],
-        target_col: str = 'forward_returns',
+        target_col: str,
         study_name: Optional[str] = None,
         storage: Optional[str] = None,
         load_if_exists: bool = False
@@ -264,7 +272,7 @@ class OptunaLightGBMTuner:
         feature_cols : list
             List of feature column names
         target_col : str
-            Target column name
+            Target column name (e.g., 'forward_returns' or 'risk_label')
         study_name : str, optional
             Name for the study
         storage : str, optional

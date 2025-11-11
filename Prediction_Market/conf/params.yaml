@@ -80,26 +80,6 @@ model_return:
     verbose: false
     early_stopping_rounds: 50
 
-# Model Configuration - Risk Predictor
-model_risk:
-  # Risk label: rolling std window
-  risk_window: 20
-  lightgbm:
-    boosting_type: "gbdt"
-    objective: "regression"
-    metric: "rmse"
-    num_leaves: 31
-    learning_rate: 0.05
-    feature_fraction: 0.8
-    bagging_fraction: 0.8
-    bagging_freq: 5
-    max_depth: -1
-    min_child_samples: 20
-    n_estimators: 1000
-    random_state: 42
-    verbosity: -1
-    early_stopping_rounds: 50
-
 # Position Mapping Strategy
 position:
   # Strategy type: 'sharpe_scaling', 'quantile', 'vol_targeting'
@@ -222,6 +202,80 @@ tuning:
         low: 0.00000001
         high: 10.0
         log: true
+
+# Risk Model Configuration
+risk:
+  # Risk label parameters
+  label:
+    # Window size for rolling std calculation (future volatility)
+    window: 20
+    # Minimum periods required for rolling calculation
+    min_periods: 10
+    # Clip extreme values (MAD threshold)
+    clip_threshold: 4.0
+  
+  # Risk model type: 'lightgbm', 'garch', 'ensemble'
+  model_type: "lightgbm"
+  
+  # LightGBM risk model parameters
+  lightgbm:
+    # Fixed parameters
+    fixed_params:
+      objective: "regression"
+      metric: "rmse"
+      verbosity: -1
+      random_state: 42
+      # Risk-specific parameters
+      min_data_in_leaf: 20
+      lambda_l1: 0.1
+      lambda_l2: 0.1
+    
+    # Parameter search space for tuning
+    param_space:
+      num_leaves:
+        type: "int"
+        low: 15
+        high: 80
+      learning_rate:
+        type: "float"
+        low: 0.01
+        high: 0.2
+        log: true
+      feature_fraction:
+        type: "float"
+        low: 0.5
+        high: 0.9
+      bagging_fraction:
+        type: "float"
+        low: 0.6
+        high: 0.95
+      bagging_freq:
+        type: "int"
+        low: 1
+        high: 7
+      max_depth:
+        type: "int"
+        low: 3
+        high: 10
+      reg_alpha:
+        type: "float"
+        low: 0.0001
+        high: 5.0
+        log: true
+      reg_lambda:
+        type: "float"
+        low: 0.0001
+        high: 5.0
+        log: true
+  
+  # Calibration parameters
+  calibration:
+    # Bins for calibration plot
+    n_bins: 10
+    # Strategy: 'quantile' or 'uniform'
+    strategy: "quantile"
+    # Minimum samples per bin
+    min_samples_per_bin: 50
 
 # Hyperparameter Optimization
 optuna:
