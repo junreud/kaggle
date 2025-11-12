@@ -157,9 +157,9 @@ class ReturnPredictor:
         
         # Callbacks
         callbacks = [
-            lgb.log_evaluation(period=100),
+            lgb.log_evaluation(period=100), # 100 번의 iteration마다 로그 출력
             lgb.early_stopping(
-                stopping_rounds=self.params.get('early_stopping_rounds', 50),
+                stopping_rounds=self.params.get('early_stopping_rounds', 50), # 50번 학습동안 개선 없으면 중단
                 verbose=True
             )
         ]
