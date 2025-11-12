@@ -58,23 +58,17 @@ def set_seed(seed: int = 42) -> None:
     os.environ['PYTHONHASHSEED'] = str(seed)
     
     # For deep learning frameworks (if used)
-    try:
-        import torch
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-    except ImportError:
-        pass
+    # Note: Disabled PyTorch/TensorFlow to avoid potential internet access issues in Kaggle
+    # try:
+    #     import torch
+    #     torch.manual_seed(seed)
+    #     torch.cuda.manual_seed(seed)
+    #     torch.cuda.manual_seed_all(seed)
+    #     torch.backends.cudnn.deterministic = True
+    #     torch.backends.cudnn.benchmark = False
+    # except ImportError:
+    #     pass
     
-    try:
-        import tensorflow as tf
-        tf.random.set_seed(seed)
-    except ImportError:
-        pass
-
-
 def load_config(config_path: str = "conf/params.yaml") -> dict:
     """
     Load configuration from YAML file.

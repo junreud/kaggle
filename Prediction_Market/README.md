@@ -107,7 +107,7 @@ score = \frac{mean(strategy_returns)}{std(strategy_returns)} / vol_penalty
 * [x] 결측 전략 확정(그룹별: E/I/P forward-fill 제한 + 중앙값, M/V/S 롤링 계산 시 누출 방지)
 * [x] 결측값 패턴 분석 (MCAR, MAR, MNAR 판별)
 * [x] 이상치 탐지 및 처리 전략 (MAD, IQR 기준)
-* [x] 그룹별 스케일링 설계(robust/z, 학습 구간에서만 적합)
+* [x] 그룹별 스케일링 설계(robust/z, 학습 구간에서만 적합)  
 * [x] 기본 벤치마크 계산(allocation=1 고정 → 커스텀 메트릭)
 * [x] EDA 노트 작성:
   * [x] 피처 그룹별(M/E/I/P/V/S) 분포 및 기술통계

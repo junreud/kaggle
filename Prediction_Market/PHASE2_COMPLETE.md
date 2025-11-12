@@ -9,9 +9,9 @@
 
 #### 주요 클래스 및 기능
 - **PurgedWalkForwardCV**: 시계열 데이터를 위한 교차 검증 클래스
-  - Time-aware split (시간 순서 보존)
-  - Embargo: 검증 세트 후 5일 제외 (미래 정보 누출 방지)
-  - Purge: 훈련/검증 간 중복 기간 제거
+  - Time-aware split (시간 순서 보존)하는 방식
+  - Embargo: Valid 세트 후 5일 제외 (미래 정보 누출 방지)
+  - Purge: Valid 데이터 바로 전후의 훈련 데이터 제거
   - Walk-forward 방식으로 5개 폴드 생성
 
 - **CVStrategy**: CV 전략 관리자
