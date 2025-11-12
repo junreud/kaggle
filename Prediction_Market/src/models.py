@@ -272,7 +272,7 @@ class ReturnPredictor:
         # Store fold scores
         fold_scores = []
         
-        # Train each fold
+        # Train each fol || 실제 학습데이터 검증데이터를 나누는 부분
         for fold_idx, (train_idx, val_idx) in enumerate(cv_splits):
             X_train = X.iloc[train_idx]
             y_train = y.iloc[train_idx]
@@ -296,7 +296,7 @@ class ReturnPredictor:
         self.oof_predictions = oof_predictions
         self.oof_indices = oof_indices
         
-        # Calculate overall OOF score
+        # Calculate overall OOF score , 모든 날짜의 예측값과 실제값의 RMSE 계산
         oof_score = np.sqrt(np.mean((y[oof_indices] - oof_predictions[oof_indices]) ** 2))
         
         logger.info("\n" + "="*80)
@@ -450,11 +450,12 @@ class ReturnPredictor:
         output_file.parent.mkdir(parents=True, exist_ok=True)
         
         oof_df = pd.DataFrame({
-            'oof_prediction': self.oof_predictions,
-            'is_oof': self.oof_indices
+            'oof_prediction': self.oof_predictions, #  샘플(날짜)의 예측된 수익률 (forward_returns 예측값)
+            'is_oof': self.oof_indices # 해당 샘플이 OOF 예측이 있는지 여부
         })
         
-        oof_df.to_csv(output_file, index=False)
+        oof_df.to_csv(output_file, index=False)  # 초반 몇천개 샘플은 is_oof=False
+                                                 # (시계열 특성상 과거 데이터가 부족하여 예측 불가
         logger.info(f"OOF predictions saved to {output_file}")
 
 
