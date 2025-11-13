@@ -18,7 +18,7 @@ import pandas as pd
 from scipy import stats
 from sklearn.preprocessing import RobustScaler, StandardScaler
 
-from utils import get_logger, Timer, load_config
+from .utils import get_logger, Timer, load_config
 
 # Initialize global logger once (will use logs/prediction_market.log)
 logger = get_logger(log_file="logs/prediction_market.log", level="INFO")
@@ -100,484 +100,147 @@ class DataLoader:
         for group, features in self.feature_groups.items():
             logger.info(f"  {group}: {len(features)} features")
     
-    def check_data_quality(self, df: pd.DataFrame) -> Dict[str, any]:
+    def get_missing_summary(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Perform comprehensive data quality checks.
-        
-        Args:
-            df: DataFrame to check
-            
-        Returns:
-            Dictionary with quality metrics
-        """
-        quality_report = {
-            'total_rows': len(df),
-            'total_columns': len(df.columns),
-            'duplicates': df.duplicated().sum(),
-            'duplicate_date_ids': df['date_id'].duplicated().sum(),
-            'missing_summary': {},
-            'date_range': (df['date_id'].min(), df['date_id'].max()),
-            'date_gaps': self._check_date_gaps(df),
-        }
-        
-        # Check for duplicates
-        if quality_report['duplicates'] > 0:
-            logger.warning(f"Found {quality_report['duplicates']} duplicate rows!")
-        
-        if quality_report['duplicate_date_ids'] > 0:
-            logger.warning(f"Found {quality_report['duplicate_date_ids']} duplicate date_ids!")
-        
-        # Missing value analysis by feature group
-        for group, features in self.feature_groups.items():
-            group_features = [f for f in features if f in df.columns]
-            if group_features:
-                missing_pct = df[group_features].isnull().sum() / len(df) * 100
-                quality_report['missing_summary'][group] = {
-                    'features': len(group_features),
-                    'missing_count': df[group_features].isnull().sum().sum(),
-                    'avg_missing_pct': missing_pct.mean(),
-                    'max_missing_pct': missing_pct.max(),
-                }
-        
-        return quality_report
-    
-    def _check_date_gaps(self, df: pd.DataFrame) -> List[Tuple[int, int]]:
-        """
-        Check for gaps in date_id sequence.
-        
-        Args:
-            df: DataFrame with date_id column
-            
-        Returns:
-            List of (start, end) tuples representing gaps
-        """
-        date_ids = df['date_id'].sort_values().values
-        gaps = []
-        
-        for i in range(len(date_ids) - 1):
-            if date_ids[i+1] - date_ids[i] > 1:
-                gaps.append((date_ids[i], date_ids[i+1]))
-        
-        if gaps:
-            logger.warning(f"Found {len(gaps)} gaps in date_id sequence")
-        
-        return gaps
-    
-    def analyze_missing_patterns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Analyze missing value patterns (MCAR, MAR, MNAR).
+        Get simple summary of missing values by feature.
         
         Args:
             df: DataFrame to analyze
             
         Returns:
-            DataFrame with missing pattern analysis
+            DataFrame with missing value summary
         """
-        missing_stats = []
+        missing_info = []
         
         for group, features in self.feature_groups.items():
             group_features = [f for f in features if f in df.columns]
             
             for col in group_features:
-                if df[col].isnull().sum() > 0:
-                    missing_pct = df[col].isnull().sum() / len(df) * 100
-                    
-                    # Check if missingness is random
-                    # Simple test: correlation with date_id
-                    is_missing = df[col].isnull().astype(int)
-                    date_corr = np.corrcoef(df['date_id'], is_missing)[0, 1]
-                    
-                    # Pattern classification (simplified)
-                    if abs(date_corr) < 0.1:
-                        pattern = 'MCAR'  # Missing Completely At Random
-                    elif abs(date_corr) < 0.5:
-                        pattern = 'MAR'   # Missing At Random
-                    else:
-                        pattern = 'MNAR'  # Missing Not At Random
-                    
-                    missing_stats.append({
+                missing_count = df[col].isna().sum()
+                if missing_count > 0:
+                    missing_info.append({
                         'feature': col,
                         'group': group,
-                        'missing_count': df[col].isnull().sum(),
-                        'missing_pct': missing_pct,
-                        'date_correlation': date_corr,
-                        'pattern': pattern,
+                        'missing_count': missing_count,
+                        'missing_pct': missing_count / len(df) * 100,
+                        'first_valid_idx': df[col].first_valid_index(),
+                        'last_valid_idx': df[col].last_valid_index(),
                     })
         
-        return pd.DataFrame(missing_stats).sort_values('missing_pct', ascending=False)
+        return pd.DataFrame(missing_info).sort_values('missing_pct', ascending=False)
     
-    def create_missing_masks(
+    def normalize_features(
         self,
         df: pd.DataFrame,
-        suffix: str = '_is_missing'
-    ) -> pd.DataFrame:
-        """
-        Create binary missing indicators and gap duration features.
-        
-        For each feature with missing values, creates:
-        1. {feature}_is_missing: Binary indicator (1 if missing, 0 otherwise)
-        2. {feature}_missing_days: Days since last valid observation
-        
-        Args:
-            df: DataFrame to process (must be sorted by date_id)
-            suffix: Suffix for binary mask columns
-            
-        Returns:
-            DataFrame with additional mask features
-            
-        Example:
-            >>> df = loader.create_missing_masks(df)
-            >>> # Creates: E1_is_missing, E1_missing_days, etc.
-        """
-        df = df.copy()
-        mask_features_created = 0
-        
-        for group, features in self.feature_groups.items():
-            if group == 'D':  # Skip dummy variables
-                continue
-                
-            for col in features:
-                if col not in df.columns:
-                    continue
-                
-                # Skip if no missing values
-                if not df[col].isna().any():
-                    continue
-                
-                # 1. Binary missing indicator
-                mask_col = f"{col}{suffix}"
-                df[mask_col] = df[col].isna().astype(int)
-                
-                # 2. Missing duration (days since last valid value)
-                duration_col = f"{col}_missing_days"
-                is_missing = df[col].isna()
-                
-                # Calculate cumulative days missing
-                missing_counter = 0
-                duration_values = []
-                
-                for missing in is_missing:
-                    if missing:
-                        missing_counter += 1
-                    else:
-                        missing_counter = 0
-                    duration_values.append(missing_counter)
-                
-                df[duration_col] = duration_values
-                mask_features_created += 2
-        
-        logger.info(f"Created {mask_features_created} missing mask features")
-        
-        return df
-    
-    def align_announcement_dates(
-        self,
-        df: pd.DataFrame,
-        announcement_calendar: Optional[pd.DataFrame] = None,
-        default_lag: int = 15
-    ) -> pd.DataFrame:
-        """
-        Align economic indicators with their announcement dates to prevent future leakage.
-        
-        CRITICAL: Economic indicators (E group) are often announced with a delay.
-        For example, "February CPI" is announced on March 15th.
-        Using February CPI on February 28th would be future information leakage!
-        
-        This method shifts values forward by announcement lag to reflect real availability.
-        
-        Args:
-            df: DataFrame to process (must be sorted by date_id)
-            announcement_calendar: Optional DataFrame with columns:
-                - feature: Feature name (e.g., 'E1')
-                - announcement_lag: Number of days after period end (default: 15)
-            default_lag: Default announcement lag in days for features not in calendar
-            
-        Returns:
-            DataFrame with properly aligned values
-            
-        Example:
-            >>> # Without alignment: E1 value at date_id=100 uses data from date_id=100
-            >>> # With alignment: E1 value at date_id=100 uses data from date_id=85
-            >>> df_aligned = loader.align_announcement_dates(df, default_lag=15)
-        """
-        df = df.copy()
-        
-        # Simple version: Apply default lag to all E group features
-        # (Full version would use announcement_calendar for feature-specific lags)
-        
-        if announcement_calendar is not None:
-            # Use custom announcement schedule
-            logger.info("Using custom announcement calendar")
-            for _, row in announcement_calendar.iterrows():
-                feature = row['feature']
-                lag = row.get('announcement_lag', default_lag)
-                
-                if feature in df.columns:
-                    # Shift values forward by lag days
-                    df[feature] = df[feature].shift(lag)
-                    logger.debug(f"Shifted {feature} by {lag} days")
-        else:
-            # Apply default lag to E group (economic indicators)
-            e_features = [f for f in self.feature_groups.get('E', []) if f in df.columns]
-            
-            if e_features:
-                logger.info(f"Applying {default_lag}-day announcement lag to {len(e_features)} E-group features")
-                for feature in e_features:
-                    df[feature] = df[feature].shift(default_lag)
-        
-        logger.info("Announcement date alignment completed")
-        
-        return df
-    
-    def handle_missing_values(
-        self, 
-        df: pd.DataFrame, 
         train_df: Optional[pd.DataFrame] = None,
-        strategy: Optional[Dict[str, str]] = None,
-        max_gap: int = 10
-    ) -> pd.DataFrame:
-        """
-        Handle missing values with TIME-SERIES AWARE strategies.
-        
-        IMPORTANT: Uses forward-fill only strategies to prevent future information leakage.
-        
-        Updated strategies (Phase 1):
-        - E: LOCF only (economic indicators - prevent future leakage from interpolation)
-        - I: LOCF + median fallback (interest rates)
-        - P: LOCF only (price/valuation - prevent future leakage)
-        - M: EWMA (market indicators - recent data weighted more)
-        - V: EWMA (volatility indicators)
-        - S: EWMA (sentiment indicators)
-        - D: Fill with 0 (dummy flags)
-        
-        Args:
-            df: DataFrame to process (must be sorted by date_id)
-            train_df: Training data for fitting fallback values (optional)
-            strategy: Custom strategy per group (optional)
-            max_gap: Maximum number of periods to forward-fill (default: 10)
-            
-        Returns:
-            DataFrame with missing values handled
-        """
-        df = df.copy()
-        
-        # Updated default strategy - NO interpolate for E/I/P to prevent future leakage
-        default_strategy = {
-            'E': 'locf',        # ✅ LOCF only (was: interpolate)
-            'I': 'locf_median', # ✅ LOCF + median fallback
-            'P': 'locf',        # ✅ LOCF only (was: interpolate)
-            'M': 'ewma',        # EWMA for market indicators
-            'V': 'ewma',        # EWMA for volatility
-            'S': 'ewma',        # EWMA for sentiment
-            'D': 'zero',        # Zero fill for dummy variables
-        }
-        
-        strategy = strategy or default_strategy
-        ewma_span = self.config.get('preprocessing', {}).get('ewma_span', 10)
-        
-        for group, features in self.feature_groups.items():
-            group_features = [f for f in features if f in df.columns]
-            
-            if not group_features:
-                continue
-            
-            group_strategy = strategy.get(group, 'locf')
-            
-            if group_strategy == 'locf':
-                # Last Observation Carried Forward with max gap limit
-                for col in group_features:
-                    # LOCF with limit to prevent excessive forward-filling
-                    df[col] = df[col].ffill(limit=max_gap)
-                    
-                    # Fallback: training median (no future information)
-                    if df[col].isna().any():
-                        if train_df is not None and col in train_df.columns:
-                            fallback_val = train_df[col].median()
-                        else:
-                            fallback_val = df[col].median()
-                        df[col] = df[col].fillna(fallback_val)
-                        
-            elif group_strategy == 'locf_median':
-                # LOCF with median fallback (for interest rates)
-                for col in group_features:
-                    df[col] = df[col].ffill(limit=max_gap)
-                    
-                    if df[col].isna().any():
-                        if train_df is not None and col in train_df.columns:
-                            fallback_val = train_df[col].median()
-                        else:
-                            fallback_val = df[col].median()
-                        df[col] = df[col].fillna(fallback_val)
-                    
-            elif group_strategy == 'interpolate':
-                # Legacy: Time-series linear interpolation (DEPRECATED for E/I/P)
-                logger.warning(f"Group {group}: 'interpolate' strategy may cause future leakage. Consider 'locf' instead.")
-                for col in group_features:
-                    # Linear interpolation (respects time order)
-                    df[col] = df[col].interpolate(
-                        method='linear',
-                        limit_direction='forward',
-                        limit=max_gap
-                    )
-                    
-                    # Fill remaining with training median or current median
-                    if df[col].isna().any():
-                        if train_df is not None and col in train_df.columns:
-                            fallback_val = train_df[col].median()
-                        else:
-                            fallback_val = df[col].median()
-                        df[col] = df[col].fillna(fallback_val)
-                    
-            elif group_strategy == 'ewma':
-                # Exponentially weighted moving average interpolation
-                for col in group_features:
-                    mask = df[col].isna()
-                    if mask.any():
-                        # Calculate EWMA (gives more weight to recent values)
-                        ewma = df[col].ewm(span=ewma_span, min_periods=1).mean()
-                        df.loc[mask, col] = ewma[mask]
-                        
-                        # Fill any remaining NaNs at the beginning
-                        if df[col].isna().any():
-                            df[col] = df[col].bfill(limit=max_gap)
-                            
-                            # Final fallback
-                            if df[col].isna().any():
-                                if train_df is not None and col in train_df.columns:
-                                    fallback_val = train_df[col].median()
-                                else:
-                                    fallback_val = df[col].median()
-                                df[col] = df[col].fillna(fallback_val)
-                    
-            elif group_strategy == 'zero':
-                # Fill with 0 (for dummy variables)
-                df[group_features] = df[group_features].fillna(0)
-        
-        logger.info(f"Missing values handled (LOCF-based, no future leakage). Remaining: {df.isnull().sum().sum()}")
-        
-        return df
-    
-    def detect_outliers(
-        self, 
-        df: pd.DataFrame, 
-        method: str = 'rolling_mad',
-        threshold: float = 4.0,
+        method: str = 'rank_gauss',
+        by_group: bool = True,
         window: int = 60
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> Tuple[pd.DataFrame, Dict]:
         """
-        Detect outliers using TIME-SERIES AWARE methods (rolling window based).
+        Normalize features for stable distribution (Competition Best Practice).
         
-        Improved methods for time series:
-        - 'rolling_mad': Rolling Median Absolute Deviation (local baseline)
-        - 'rolling_iqr': Rolling IQR (local quantiles)
-        - 'ewma': EWMA-based detection (recent data weighted more)
-        - 'mad': Global MAD (legacy method)
-        - 'iqr': Global IQR (legacy method)
+        Methods:
+        - 'rank_gauss': Rank transformation → Gaussian distribution (MOST ROBUST)
+        - 'log1p': log(1+x) transformation for skewed features
+        - 'rolling_zscore': (x - rolling_mean) / rolling_std (time-series aware)
+        
+        Competition guidelines:
+        - Rank-Gauss is preferred for most competitions (robust to outliers)
+        - Log1p for naturally skewed features (prices, volumes)
+        - Rolling z-score for regime-changing time series
         
         Args:
-            df: DataFrame to analyze
-            method: Detection method
-            threshold: Threshold multiplier
-            window: Rolling window size (for rolling methods)
+            df: DataFrame to normalize
+            train_df: Training data for fitting (optional)
+            method: Normalization method
+            by_group: Whether to normalize by feature group
+            window: Rolling window size (for rolling_zscore)
             
         Returns:
-            Tuple of (outlier_mask DataFrame, outlier_summary DataFrame)
+            Tuple of (normalized DataFrame, normalization metadata)
+            
+        Example:
+            >>> df_norm, norm_meta = loader.normalize_features(train_df, method='rank_gauss')
+            >>> # Apply same transformation to test data
+            >>> test_norm, _ = loader.normalize_features(test_df, train_df=train_df, method='rank_gauss')
         """
-        outlier_mask = pd.DataFrame(False, index=df.index, columns=df.columns)
-        outlier_summary = []
+        from scipy.stats import rankdata
+        from scipy.special import erfinv
+        
+        df = df.copy()
+        metadata = {'method': method, 'by_group': by_group}
         
         # Get numeric columns (exclude date_id and target)
         numeric_cols = df.select_dtypes(include=[np.number]).columns
-        exclude_cols = ['date_id', 'forward_returns', 'risk_free_rate', 
+        exclude_cols = ['date_id', 'forward_returns', 'risk_free_rate',
                        'market_forward_excess_returns', 'is_scored']
-        numeric_cols = [c for c in numeric_cols if c not in exclude_cols]
         
-        for col in numeric_cols:
-            if method == 'rolling_mad':
-                # Rolling Median Absolute Deviation (time-series aware)
-                rolling_median = df[col].rolling(window=window, min_periods=10, center=False).median()
-                rolling_mad = df[col].rolling(window=window, min_periods=10, center=False).apply(
-                    lambda x: np.median(np.abs(x - np.median(x))), raw=True
-                )
-                
-                # Avoid division by zero
-                rolling_mad = rolling_mad.replace(0, np.nan)
-                
-                if rolling_mad.isna().all():
-                    continue
-                
-                # Calculate modified z-scores based on rolling window
-                modified_z_scores = 0.6745 * (df[col] - rolling_median) / rolling_mad
-                outliers = np.abs(modified_z_scores) > threshold
-                
-            elif method == 'rolling_iqr':
-                # Rolling Interquartile Range
-                rolling_q1 = df[col].rolling(window=window, min_periods=10).quantile(0.25)
-                rolling_q3 = df[col].rolling(window=window, min_periods=10).quantile(0.75)
-                rolling_iqr = rolling_q3 - rolling_q1
-                
-                lower_bound = rolling_q1 - threshold * rolling_iqr
-                upper_bound = rolling_q3 + threshold * rolling_iqr
-                
-                outliers = (df[col] < lower_bound) | (df[col] > upper_bound)
-                
-            elif method == 'ewma':
-                # EWMA-based outlier detection (recent data weighted more)
-                ewma = df[col].ewm(span=window, min_periods=10).mean()
-                ewm_std = df[col].ewm(span=window, min_periods=10).std()
-                
-                # Avoid division by zero
-                ewm_std = ewm_std.replace(0, np.nan)
-                
-                if ewm_std.isna().all():
-                    continue
-                
-                outliers = np.abs(df[col] - ewma) > threshold * ewm_std
-                
-            elif method == 'mad':
-                # Global Median Absolute Deviation (legacy)
-                median = df[col].median()
-                mad = np.median(np.abs(df[col] - median))
-                
-                if mad == 0:
-                    continue
-                
-                modified_z_scores = 0.6745 * (df[col] - median) / mad
-                outliers = np.abs(modified_z_scores) > threshold
-                
-            elif method == 'iqr':
-                # Global Interquartile Range (legacy)
-                Q1 = df[col].quantile(0.25)
-                Q3 = df[col].quantile(0.75)
-                IQR = Q3 - Q1
-                
-                lower_bound = Q1 - threshold * IQR
-                upper_bound = Q3 + threshold * IQR
-                
-                outliers = (df[col] < lower_bound) | (df[col] > upper_bound)
+        if by_group:
+            # Normalize by feature group
+            groups_to_process = {k: v for k, v in self.feature_groups.items() if k != 'D'}
+            features_to_normalize = []
+            for group, features in groups_to_process.items():
+                features_to_normalize.extend([f for f in features if f in df.columns])
+        else:
+            # Normalize all numeric features
+            features_to_normalize = [c for c in numeric_cols if c not in exclude_cols]
+        
+        if method == 'rank_gauss':
+            # Rank transformation → Gaussian distribution
+            for col in features_to_normalize:
+                if df[col].notna().sum() > 0:
+                    # Get valid values
+                    valid_mask = df[col].notna()
+                    values = df.loc[valid_mask, col].values
+                    
+                    # Rank transformation (0 to 1)
+                    ranks = rankdata(values, method='average')
+                    # Avoid exactly 0 and 1 (for erfinv)
+                    ranks = (ranks - 0.5) / len(ranks)
+                    
+                    # Convert to Gaussian using inverse error function
+                    # erfinv maps uniform [0,1] to normal distribution
+                    normalized = np.sqrt(2) * erfinv(2 * ranks - 1)
+                    
+                    df.loc[valid_mask, col] = normalized
             
-            else:
-                raise ValueError(f"Unknown method: {method}. Use 'rolling_mad', 'rolling_iqr', 'ewma', 'mad', or 'iqr'")
+            logger.info(f"Rank-Gauss normalization: {len(features_to_normalize)} features")
             
-            outlier_mask[col] = outliers
+        elif method == 'log1p':
+            # log(1+x) transformation (for positive skewed features)
+            for col in features_to_normalize:
+                if df[col].notna().sum() > 0:
+                    # Shift to positive if needed
+                    min_val = df[col].min()
+                    if min_val < 0:
+                        shift = abs(min_val) + 1
+                        df[col] = np.log1p(df[col] + shift)
+                    else:
+                        df[col] = np.log1p(df[col])
             
-            if outliers.sum() > 0:
-                outlier_summary.append({
-                    'feature': col,
-                    'outlier_count': outliers.sum(),
-                    'outlier_pct': outliers.sum() / len(df) * 100,
-                    'min': df.loc[outliers, col].min() if outliers.sum() > 0 else None,
-                    'max': df.loc[outliers, col].max() if outliers.sum() > 0 else None,
-                })
+            logger.info(f"Log1p normalization: {len(features_to_normalize)} features")
+            
+        elif method == 'rolling_zscore':
+            # Rolling z-score (time-series aware)
+            for col in features_to_normalize:
+                if df[col].notna().sum() > 0:
+                    rolling_mean = df[col].rolling(window=window, min_periods=20, center=False).mean()
+                    rolling_std = df[col].rolling(window=window, min_periods=20, center=False).std()
+                    
+                    # Avoid division by zero
+                    rolling_std = rolling_std.replace(0, np.nan)
+                    
+                    df[col] = (df[col] - rolling_mean) / rolling_std
+            
+            logger.info(f"Rolling z-score normalization: {len(features_to_normalize)} features (window={window})")
+            
+        else:
+            raise ValueError(f"Unknown method: {method}. Use 'rank_gauss', 'log1p', or 'rolling_zscore'")
         
-        summary_df = pd.DataFrame(outlier_summary)
-        if len(summary_df) > 0:
-            summary_df = summary_df.sort_values('outlier_pct', ascending=False)
+        metadata['features_normalized'] = features_to_normalize
         
-        method_desc = f"{method} (window={window})" if 'rolling' in method or method == 'ewma' else method
-        logger.info(f"Outlier detection complete [{method_desc}]. Found {len(summary_df)} features with outliers")
-        
-        return outlier_mask, summary_df
+        return df, metadata
     
     def winsorize_outliers(
         self, 
@@ -642,6 +305,117 @@ class DataLoader:
         
         else:
             raise ValueError(f"Unknown method: {method}. Use 'rolling' or 'global'")
+        
+        return df
+    
+    def add_regime_indicators(
+        self,
+        df: pd.DataFrame,
+        crisis_periods: Optional[List[Tuple[int, int]]] = None,
+        auto_detect: bool = True,
+        vol_threshold: float = 2.0
+    ) -> pd.DataFrame:
+        """
+        Add regime dummy variables for crisis/high-volatility periods (Competition Best Practice).
+        
+        Crisis periods (2008, 2020, etc.) have different market dynamics.
+        Adding regime indicators helps models adapt to these structural changes.
+        
+        Methods:
+        1. Manual: Specify known crisis periods via crisis_periods parameter
+        2. Auto: Detect high-volatility regimes automatically
+        
+        Args:
+            df: DataFrame with 'forward_returns' and 'date_id' columns
+            crisis_periods: List of (start_date_id, end_date_id) tuples for crisis periods
+                Example: [(2008, 2009), (2020, 2020)]
+            auto_detect: Whether to auto-detect high volatility regimes
+            vol_threshold: Volatility threshold for auto-detection (default: 2.0x median)
+            
+        Returns:
+            DataFrame with regime indicator columns added
+            
+        Example:
+            >>> df = loader.add_regime_indicators(
+            >>>     df,
+            >>>     crisis_periods=[(2008, 2009), (2020, 2020)],
+            >>>     auto_detect=True
+            >>> )
+            >>> # Adds: regime_crisis_2008_2009, regime_crisis_2020_2020, regime_high_vol
+        """
+        df = df.copy()
+        
+        # Manual crisis periods
+        if crisis_periods:
+            for start, end in crisis_periods:
+                col_name = f"regime_crisis_{start}_{end}"
+                df[col_name] = 0
+                
+                # Mark crisis period
+                crisis_mask = (df['date_id'] >= start) & (df['date_id'] <= end)
+                df.loc[crisis_mask, col_name] = 1
+                
+                logger.info(f"Added regime indicator: {col_name} ({crisis_mask.sum()} periods)")
+        
+        # Auto-detect high volatility regimes
+        if auto_detect and 'forward_returns' in df.columns:
+            # Calculate rolling volatility
+            rolling_vol = df['forward_returns'].rolling(window=60, min_periods=20).std()
+            vol_median = rolling_vol.median()
+            
+            # High volatility regime
+            df['regime_high_vol'] = 0
+            high_vol_mask = rolling_vol > (vol_threshold * vol_median)
+            df.loc[high_vol_mask, 'regime_high_vol'] = 1
+            
+            logger.info(f"Added auto-detected regime: regime_high_vol ({high_vol_mask.sum()} periods)")
+        
+        return df
+    
+    def add_missing_indicators(
+        self,
+        df: pd.DataFrame,
+        threshold: float = 0.1
+    ) -> pd.DataFrame:
+        """
+        Add binary indicators for features with high missing rate (Competition Best Practice).
+        
+        Missing pattern itself can be a signal:
+        - Old features have more initial missing (data collection start date varies)
+        - Missing rate correlates with market regimes
+        - Missing can indicate data quality issues
+        
+        Args:
+            df: DataFrame to process
+            threshold: Missing rate threshold (default: 0.1 = 10%)
+                Only create indicators for features with >10% missing
+            
+        Returns:
+            DataFrame with missing indicator columns added
+            
+        Example:
+            >>> df = loader.add_missing_indicators(df, threshold=0.1)
+            >>> # Adds: missing_E7, missing_V10, missing_S3, etc.
+        """
+        df = df.copy()
+        
+        # Get numeric columns (exclude date_id and target)
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        exclude_cols = ['date_id', 'forward_returns', 'risk_free_rate',
+                       'market_forward_excess_returns', 'is_scored']
+        numeric_cols = [c for c in numeric_cols if c not in exclude_cols]
+        
+        indicators_added = 0
+        
+        for col in numeric_cols:
+            missing_rate = df[col].isna().sum() / len(df)
+            
+            if missing_rate > threshold:
+                indicator_col = f"missing_{col}"
+                df[indicator_col] = df[col].isna().astype(int)
+                indicators_added += 1
+        
+        logger.info(f"Added {indicators_added} missing indicators (threshold={threshold:.1%})")
         
         return df
     
@@ -1113,69 +887,111 @@ class DataLoader:
         self,
         df: pd.DataFrame,
         train_df: Optional[pd.DataFrame] = None,
-        handle_missing: bool = True,
+        # Competition best practices
+        add_missing_indicators: bool = False,
+        missing_threshold: float = 0.1,
+        add_regime_indicators: bool = False,
+        crisis_periods: Optional[List[Tuple[int, int]]] = None,
+        auto_detect_regime: bool = True,
+        # Outlier handling
         handle_outliers: bool = True,
-        scale: bool = True,
-        missing_strategy: Optional[Dict[str, str]] = None,
-        outlier_method: str = 'rolling_mad',
-        outlier_threshold: float = 4.0,
+        winsorize_limits: Tuple[float, float] = (0.001, 0.001),
         winsorize_method: str = 'rolling',
-        winsorize_limits: Tuple[float, float] = (0.01, 0.01),
+        # Normalization
+        normalize: bool = False,
+        normalize_method: str = 'rank_gauss',
+        # Scaling
+        scale: bool = True,
         scale_method: str = 'robust',
+        # Window size
         window: int = 60
     ) -> Tuple[pd.DataFrame, Dict]:
         """
-        Complete TIME-SERIES AWARE preprocessing pipeline.
+        Complete TIME-SERIES AWARE preprocessing pipeline (Competition Best Practices).
         
-        This pipeline ensures:
-        1. Temporal ordering is respected (no future leakage)
-        2. Local patterns are considered (rolling windows)
-        3. Recent data is weighted more (EWMA)
-        4. Regime changes are handled (adaptive methods)
+        Pipeline stages:
+        1. Add missing indicators (optional) - Missing pattern as signal
+        2. Add regime indicators (optional) - Crisis periods (2008, 2020, etc.)
+        3. Clip extreme values (winsorization) - 0.1~0.5% percentile
+        4. Normalize features (optional) - Rank-Gauss, Log1p, Rolling Z-score
+        5. Scale features (optional) - Robust or Standard scaling
+        
+        Competition best practices:
+        ✅ Never delete rows (time series continuity)
+        ✅ Clip extreme values (0.1~0.5% winsorization)
+        ✅ Normalize distribution (rank-gauss preferred)
+        ✅ Add regime dummies (2008, 2020 crisis periods)
+        ✅ Use missing pattern as signal (missing indicators)
         
         Args:
             df: DataFrame to process (must be sorted by date_id)
             train_df: Training data for fitting (optional)
-            handle_missing: Whether to handle missing values
-            handle_outliers: Whether to handle outliers
+            
+            # Competition best practices
+            add_missing_indicators: Add binary indicators for high-missing features
+            missing_threshold: Missing rate threshold (default: 0.1 = 10%)
+            add_regime_indicators: Add crisis/high-vol regime dummies
+            crisis_periods: List of (start_date_id, end_date_id) for crisis periods
+            auto_detect_regime: Auto-detect high volatility regimes
+            
+            # Outlier handling
+            handle_outliers: Whether to winsorize outliers
+            winsorize_limits: Percentile limits (default: 0.001 = 0.1%)
+            winsorize_method: 'rolling' or 'global'
+            
+            # Normalization
+            normalize: Whether to normalize features
+            normalize_method: 'rank_gauss', 'log1p', or 'rolling_zscore'
+            
+            # Scaling
             scale: Whether to scale features
-            missing_strategy: Custom missing value strategy
-            outlier_method: Outlier detection method
-            outlier_threshold: Outlier threshold
-            winsorize_method: Winsorization method
-            winsorize_limits: Winsorization limits
-            scale_method: Scaling method
-            window: Rolling window size
+            scale_method: 'robust' or 'standard'
+            
+            # Window size
+            window: Rolling window size for time-series methods
             
         Returns:
             Tuple of (processed DataFrame, metadata dict)
+            
+        Example:
+            >>> train_processed, metadata = loader.preprocess_timeseries(
+            >>>     train_df,
+            >>>     add_missing_indicators=True,
+            >>>     add_regime_indicators=True,
+            >>>     crisis_periods=[(2008, 2009), (2020, 2020)],
+            >>>     handle_outliers=True,
+            >>>     winsorize_limits=(0.001, 0.001),  # 0.1% clip
+            >>>     normalize=True,
+            >>>     normalize_method='rank_gauss',
+            >>>     scale=True
+            >>> )
         """
         df = df.copy()
         metadata = {}
         
         logger.info("="*60)
-        logger.info("Starting TIME-SERIES PREPROCESSING PIPELINE")
+        logger.info("COMPETITION-READY PREPROCESSING PIPELINE")
         logger.info("="*60)
         
-        # Step 1: Handle missing values
-        if handle_missing:
-            with Timer("Missing value handling", logger):
-                df = self.handle_missing_values(df, train_df, missing_strategy)
-                metadata['missing_handled'] = True
+        # Step 1: Add missing indicators (Competition Best Practice)
+        if add_missing_indicators:
+            with Timer("Adding missing indicators", logger):
+                df = self.add_missing_indicators(df, threshold=missing_threshold)
+                metadata['missing_indicators_added'] = True
         
-        # Step 2: Detect and handle outliers
-        if handle_outliers:
-            with Timer("Outlier detection and treatment", logger):
-                # Detect outliers
-                outlier_mask, outlier_summary = self.detect_outliers(
-                    df, 
-                    method=outlier_method,
-                    threshold=outlier_threshold,
-                    window=window
+        # Step 2: Add regime indicators (Competition Best Practice)
+        if add_regime_indicators:
+            with Timer("Adding regime indicators", logger):
+                df = self.add_regime_indicators(
+                    df,
+                    crisis_periods=crisis_periods,
+                    auto_detect=auto_detect_regime
                 )
-                metadata['outlier_summary'] = outlier_summary
-                
-                # Winsorize outliers
+                metadata['regime_indicators_added'] = True
+        
+        # Step 3: Clip extreme values (Competition Best Practice)
+        if handle_outliers:
+            with Timer("Winsorizing outliers", logger):
                 df = self.winsorize_outliers(
                     df,
                     limits=winsorize_limits,
@@ -1184,10 +1000,22 @@ class DataLoader:
                 )
                 metadata['outliers_handled'] = True
         
-        # Step 3: Scale features
-        scalers = None
+        # Step 4: Normalize features (Competition Best Practice)
+        if normalize:
+            with Timer("Normalizing features", logger):
+                df, norm_meta = self.normalize_features(
+                    df,
+                    train_df=train_df,
+                    method=normalize_method,
+                    by_group=True,
+                    window=window
+                )
+                metadata['normalization'] = norm_meta
+                metadata['normalized'] = True
+        
+        # Step 5: Scale features
         if scale:
-            with Timer("Feature scaling", logger):
+            with Timer("Scaling features", logger):
                 df, scalers = self.scale_features(
                     df,
                     train_df=train_df,
@@ -1198,7 +1026,7 @@ class DataLoader:
                 metadata['scaled'] = True
         
         logger.info("="*60)
-        logger.info("TIME-SERIES PREPROCESSING COMPLETE")
+        logger.info("PREPROCESSING COMPLETE")
         logger.info("="*60)
         
         return df, metadata
@@ -1423,8 +1251,8 @@ def calculate_benchmark_score(
 
 
 if __name__ == "__main__":
-    # Test TIME-SERIES AWARE data loading and processing
-    from utils import set_seed
+    # Test COMPETITION-READY preprocessing pipeline
+    from src.utils import set_seed
     
     set_seed(42)
     
@@ -1435,83 +1263,54 @@ if __name__ == "__main__":
     train_df, test_df = loader.load_data()
     
     print("\n" + "="*60)
-    print("BASIC DATA QUALITY CHECKS")
+    print("COMPETITION-READY PREPROCESSING PIPELINE TEST")
     print("="*60)
     
-    # Check data quality
-    quality = loader.check_data_quality(train_df)
-    print("\n=== Data Quality Report ===")
-    print(f"Total rows: {quality['total_rows']}")
-    print(f"Duplicates: {quality['duplicates']}")
-    print(f"Date range: {quality['date_range']}")
-    
-    # Analyze missing patterns
-    missing_patterns = loader.analyze_missing_patterns(train_df)
-    print("\n=== Top 10 Missing Features ===")
-    print(missing_patterns.head(10))
-    
-    print("\n" + "="*60)
-    print("TIME-SERIES OUTLIER DETECTION COMPARISON")
-    print("="*60)
-    
-    # Compare different outlier detection methods
-    print("\n--- Global MAD (Legacy) ---")
-    outlier_mask_global, outlier_summary_global = loader.detect_outliers(
-        train_df, method='mad', threshold=4.0
-    )
-    print(f"Features with outliers: {len(outlier_summary_global)}")
-    if len(outlier_summary_global) > 0:
-        print(outlier_summary_global.head(5))
-    
-    print("\n--- Rolling MAD (Time-Series Aware) ---")
-    outlier_mask_rolling, outlier_summary_rolling = loader.detect_outliers(
-        train_df, method='rolling_mad', threshold=4.0, window=60
-    )
-    print(f"Features with outliers: {len(outlier_summary_rolling)}")
-    if len(outlier_summary_rolling) > 0:
-        print(outlier_summary_rolling.head(5))
-    
-    print("\n--- EWMA-based (Adaptive) ---")
-    outlier_mask_ewma, outlier_summary_ewma = loader.detect_outliers(
-        train_df, method='ewma', threshold=3.0, window=60
-    )
-    print(f"Features with outliers: {len(outlier_summary_ewma)}")
-    if len(outlier_summary_ewma) > 0:
-        print(outlier_summary_ewma.head(5))
-    
-    print("\n" + "="*60)
-    print("REGIME CHANGE DETECTION")
-    print("="*60)
-    
-    # Detect market regimes
-    regime = loader.detect_regime_changes(train_df, vol_window=60)
-    print(f"\nRegime distribution:\n{regime.value_counts()}")
-    
-    print("\n" + "="*60)
-    print("TIME-SERIES PREPROCESSING PIPELINE TEST")
-    print("="*60)
-    
-    # Test the complete preprocessing pipeline
+    # Test the complete preprocessing pipeline with all new features
     train_processed, metadata = loader.preprocess_timeseries(
         train_df,
         train_df=None,  # No separate train data (will use self for fitting)
-        handle_missing=True,
+        
+        # Competition best practices
+        add_missing_indicators=True,
+        missing_threshold=0.1,
+        add_regime_indicators=True,
+        crisis_periods=None,  # Will auto-detect
+        auto_detect_regime=True,
+        
+        # Outlier handling (0.1% clip - competition best practice)
         handle_outliers=True,
-        scale=True,
-        outlier_method='rolling_mad',
-        outlier_threshold=4.0,
+        winsorize_limits=(0.001, 0.001),
         winsorize_method='rolling',
-        winsorize_limits=(0.01, 0.01),
+        
+        # Normalization (rank-gauss - most robust)
+        normalize=True,
+        normalize_method='rank_gauss',
+        
+        # Scaling
+        scale=True,
         scale_method='robust',
+        
+        # Window size
         window=60
     )
     
     print("\n=== Preprocessing Metadata ===")
-    print(f"Missing handled: {metadata.get('missing_handled', False)}")
+    print(f"Missing indicators added: {metadata.get('missing_indicators_added', False)}")
+    print(f"Regime indicators added: {metadata.get('regime_indicators_added', False)}")
     print(f"Outliers handled: {metadata.get('outliers_handled', False)}")
+    print(f"Normalized: {metadata.get('normalized', False)}")
+    if metadata.get('normalized'):
+        print(f"  Method: {metadata['normalization']['method']}")
     print(f"Scaled: {metadata.get('scaled', False)}")
-    if 'outlier_summary' in metadata:
-        print(f"Features with outliers detected: {len(metadata['outlier_summary'])}")
+    
+    print("\n=== New Columns Added ===")
+    original_cols = set(train_df.columns)
+    new_cols = set(train_processed.columns) - original_cols
+    if new_cols:
+        print(f"Added {len(new_cols)} new columns:")
+        for col in sorted(new_cols):
+            print(f"  - {col}")
     
     print("\n" + "="*60)
     print("BENCHMARK CALCULATION")
