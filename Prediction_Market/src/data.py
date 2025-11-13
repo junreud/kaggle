@@ -898,6 +898,166 @@ class DataLoader:
         
         return df, pca_models
     
+    def add_event_dummies(
+        self,
+        df: pd.DataFrame,
+        event_calendar: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        Add binary event indicators for important market events.
+        
+        Creates dummy variables for event windows (before and after events)
+        to capture event-driven price movements.
+        
+        Args:
+            df: DataFrame with date_id column
+            event_calendar: DataFrame with columns:
+                - event_date: date_id of event
+                - event_type: Type of event ('FOMC', 'earnings', 'CPI', etc.)
+                - window_before: Days before event to mark (default: 0)
+                - window_after: Days after event to mark (default: 0)
+            
+        Returns:
+            DataFrame with event dummy columns
+            
+        Example:
+            >>> event_calendar = pd.DataFrame({
+            >>>     'event_date': [100, 120, 150],
+            >>>     'event_type': ['FOMC', 'CPI', 'FOMC'],
+            >>>     'window_before': [1, 0, 1],
+            >>>     'window_after': [1, 1, 1]
+            >>> })
+            >>> df_events = loader.add_event_dummies(df, event_calendar)
+            >>> # Creates columns: event_FOMC, event_CPI
+        """
+        df = df.copy()
+        
+        # Get unique event types
+        event_types = event_calendar['event_type'].unique()
+        
+        # Initialize event columns
+        for event_type in event_types:
+            col_name = f"event_{event_type}"
+            df[col_name] = 0
+        
+        # Fill in event indicators
+        for _, row in event_calendar.iterrows():
+            event_date = row['event_date']
+            event_type = row['event_type']
+            window_before = row.get('window_before', 0)
+            window_after = row.get('window_after', 0)
+            
+            col_name = f"event_{event_type}"
+            
+            # Mark event window
+            event_mask = (
+                (df['date_id'] >= event_date - window_before) &
+                (df['date_id'] <= event_date + window_after)
+            )
+            
+            df.loc[event_mask, col_name] = 1
+        
+        logger.info(f"Added {len(event_types)} event dummy variables: {list(event_types)}")
+        
+        return df
+    
+    def analyze_granger_causality(
+        self,
+        df: pd.DataFrame,
+        target: str = 'forward_returns',
+        max_lag: int = 5,
+        significance: float = 0.05
+    ) -> pd.DataFrame:
+        """
+        Test Granger causality between features and target.
+        
+        Granger causality tests whether past values of feature X help predict
+        future values of Y beyond what Y's own past values can predict.
+        
+        This helps identify which features have predictive power with time lags.
+        
+        Args:
+            df: DataFrame to analyze (must be sorted by date_id)
+            target: Target variable name
+            max_lag: Maximum lag to test (default: 5)
+            significance: P-value threshold for significance (default: 0.05)
+            
+        Returns:
+            DataFrame with causality test results, sorted by significance
+            
+        Example:
+            >>> causality_results = loader.analyze_granger_causality(
+            >>>     train_df,
+            >>>     target='forward_returns',
+            >>>     max_lag=5
+            >>> )
+            >>> # Shows which features Granger-cause the target
+        """
+        from statsmodels.tsa.stattools import grangercausalitytests
+        
+        if target not in df.columns:
+            raise ValueError(f"Target '{target}' not found in DataFrame")
+        
+        # Get numeric features (exclude date_id and target)
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        exclude_cols = ['date_id', target, 'risk_free_rate', 
+                       'market_forward_excess_returns', 'is_scored']
+        features_to_test = [c for c in numeric_cols if c not in exclude_cols]
+        
+        results = []
+        
+        for feature in features_to_test:
+            # Skip if too many missing values
+            if df[[feature, target]].isna().any(axis=1).sum() > len(df) * 0.1:
+                continue
+            
+            # Prepare data (drop NaN)
+            test_data = df[[target, feature]].dropna()
+            
+            if len(test_data) < max_lag + 10:
+                continue
+            
+            try:
+                # Run Granger causality test
+                gc_result = grangercausalitytests(
+                    test_data[[target, feature]], 
+                    maxlag=max_lag,
+                    verbose=False
+                )
+                
+                # Extract p-values for each lag
+                p_values = []
+                for lag in range(1, max_lag + 1):
+                    # Get F-test p-value
+                    p_value = gc_result[lag][0]['ssr_ftest'][1]
+                    p_values.append(p_value)
+                
+                # Find best lag (lowest p-value)
+                best_lag = np.argmin(p_values) + 1
+                best_p_value = p_values[best_lag - 1]
+                
+                # Store results
+                results.append({
+                    'feature': feature,
+                    'best_lag': best_lag,
+                    'p_value': best_p_value,
+                    'significant': best_p_value < significance,
+                    'all_p_values': p_values
+                })
+                
+            except Exception as e:
+                logger.debug(f"Granger test failed for {feature}: {e}")
+                continue
+        
+        # Convert to DataFrame and sort by p-value
+        results_df = pd.DataFrame(results).sort_values('p_value')
+        
+        significant_count = results_df['significant'].sum()
+        logger.info(f"Granger causality analysis: {significant_count}/{len(results_df)} features "
+                   f"are significant at p<{significance}")
+        
+        return results_df
+    
     def calculate_regime_weights(
         self,
         df: pd.DataFrame,
