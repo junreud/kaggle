@@ -450,15 +450,15 @@ class FeatureEngineering:
             
             # 1. Rolling features (for M, V groups)
             logger.info("\n1. Creating rolling features...")
-            df_sorted = self.create_rolling_features(df_sorted, m_cols[:5] + v_cols[:3])
+            df_sorted = self.create_rolling_features(df_sorted, m_cols + v_cols)
             
             # 2. Lag features (all groups)
             logger.info("\n2. Creating lag features...")
-            df_sorted = self.create_lag_features(df_sorted, m_cols[:5] + e_cols[:3] + p_cols[:3])
+            df_sorted = self.create_lag_features(df_sorted, m_cols + e_cols + p_cols)
             
             # 3. Difference features (M, P groups)
             logger.info("\n3. Creating difference features...")
-            df_sorted = self.create_difference_features(df_sorted, m_cols[:5] + p_cols[:3])
+            df_sorted = self.create_difference_features(df_sorted, m_cols + p_cols)
             
             # 4. Interaction features
             logger.info("\n4. Creating interaction features...")

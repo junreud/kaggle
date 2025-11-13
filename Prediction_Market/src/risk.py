@@ -348,7 +348,8 @@ class RiskForecaster:
         output_path.mkdir(parents=True, exist_ok=True)
         
         for idx, model in enumerate(self.models):
-            model_path = output_path / f"risk_lgbm_fold_{idx}.pkl"
+            # Use same naming pattern as ReturnPredictor: lightgbm_fold_{idx}.pkl
+            model_path = output_path / f"lightgbm_fold_{idx}.pkl"
             with open(model_path, 'wb') as f:
                 pickle.dump(model, f)
             logger.info(f"Model {idx} saved to {model_path}")
@@ -365,8 +366,8 @@ class RiskForecaster:
         """
         model_path = Path(model_dir)
         
-        # Find all risk model files
-        model_files = sorted(model_path.glob("risk_lgbm_fold_*.pkl"))
+        # Use same naming pattern as ReturnPredictor
+        model_files = sorted(model_path.glob("lightgbm_fold_*.pkl"))
         
         if n_models is not None:
             model_files = model_files[:n_models]

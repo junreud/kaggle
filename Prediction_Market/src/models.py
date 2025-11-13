@@ -288,7 +288,7 @@ class ReturnPredictor:
             self.models.append(model)
             fold_scores.append(val_score)
             
-            # Store OOF predictions
+            # Store OOF predictions  || val_preds : 검증 데이터에 대한 각각의 모든 예측값
             oof_predictions[val_idx] = val_preds
             oof_indices[val_idx] = True
         
