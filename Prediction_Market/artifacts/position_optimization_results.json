@@ -1,0 +1,105 @@
+{
+  "predictions": {
+    "n_valid": 9021,
+    "n_total": 9021,
+    "r_hat_mean": 0.00047177026208251925,
+    "sigma_hat_mean": 0.009039292271734672
+  },
+  "sharpe_scaling": {
+    "best_params": {
+      "k": 0.8812805042370593,
+      "b": 2.928645978023846
+    },
+    "best_score": 0.06928465978937719,
+    "n_trials": 100,
+    "validation": {
+      "vol_ratio": 1.1998236715447406,
+      "vol_ratio_ok": true,
+      "vol_violation_pct": 0.0,
+      "leverage_days": 0.0,
+      "leverage_pct": 0.0,
+      "leverage_ok": true,
+      "all_constraints_ok": true
+    }
+  },
+  "quantile_binning": {
+    "best_allocations": [
+      0.00023103361406013115,
+      0.0038661717261441048,
+      0.08685313513003823,
+      0.7395907784545949,
+      0.8974941018207714,
+      1.0753197066450881,
+      1.8548265014915954
+    ],
+    "best_score": 0.1243201568861193,
+    "n_bins": 7,
+    "n_trials": 100,
+    "validation": {
+      "vol_ratio": 1.1085769590638803,
+      "vol_ratio_ok": true,
+      "vol_violation_pct": 0.0,
+      "leverage_days": 0.0,
+      "leverage_pct": 0.0,
+      "leverage_ok": true,
+      "all_constraints_ok": true
+    }
+  },
+  "comparison": [
+    {
+      "strategy": "Quantile Binning",
+      "score": 0.1243201568861193,
+      "mean_return": 0.0014527323753894563,
+      "volatility": 0.011685412983513199,
+      "vol_ratio": 1.1085769590644632,
+      "sharpe_ratio": 0.1243201568861193,
+      "leverage_pct": 0.0,
+      "params": "bins=7"
+    },
+    {
+      "strategy": "Sharpe Scaling",
+      "score": 0.06928465978937719,
+      "mean_return": 0.0008762594862821095,
+      "volatility": 0.012647236616964073,
+      "vol_ratio": 1.1998236715453716,
+      "sharpe_ratio": 0.06928465978937719,
+      "leverage_pct": 0.0,
+      "params": "k=0.881, b=2.929"
+    },
+    {
+      "strategy": "Baseline (1.0)",
+      "score": 0.04472584803561963,
+      "mean_return": 0.0004714512565883775,
+      "volatility": 0.010540912633180573,
+      "vol_ratio": 0.9999999905131556,
+      "sharpe_ratio": 0.04472584803561963,
+      "leverage_pct": 0.0,
+      "params": "allocation=1.0"
+    }
+  ],
+  "best_strategy": {
+    "strategy_name": "Quantile Binning",
+    "score": 0.1243201568861193,
+    "metrics": {
+      "mean_return": 0.0014527323753894563,
+      "volatility": 0.011685412983513199,
+      "vol_ratio": 1.1085769590644632,
+      "sharpe_ratio": 0.1243201568861193,
+      "leverage_pct": 0.0
+    },
+    "parameters": {
+      "allocations": [
+        0.00023103361406013115,
+        0.0038661717261441048,
+        0.08685313513003823,
+        0.7395907784545949,
+        0.8974941018207714,
+        1.0753197066450881,
+        1.8548265014915954
+      ],
+      "n_bins": 7
+    }
+  },
+  "duration_seconds": 2.680201,
+  "status": "success"
+}

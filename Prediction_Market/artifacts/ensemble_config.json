@@ -1,0 +1,19 @@
+{
+  "strategy": "weighted_average",
+  "weights": [
+    0.7793380464855448,
+    0.14824636342437475,
+    0.07241559009008036
+  ],
+  "model_names": [
+    "standard",
+    "complex",
+    "regularized"
+  ],
+  "best_sharpe": 0.030776782949899863,
+  "individual_model_scores": {
+    "standard": 0.011178042972319235,
+    "complex": 0.011167851690143194,
+    "regularized": 0.01117441975350497
+  }
+}

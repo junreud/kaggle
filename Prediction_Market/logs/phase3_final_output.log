@@ -1,0 +1,398 @@
+2025-11-11 19:34:33,400 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:33,401 - prediction_market - INFO - Phase 3 Final Test: Tuning + Interpretability
+2025-11-11 19:34:33,401 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:33,401 - prediction_market - INFO - 
+================================================================================
+2025-11-11 19:34:33,401 - prediction_market - INFO - Step 1: Loading Data
+2025-11-11 19:34:33,401 - prediction_market - INFO - Starting: Loading data
+2025-11-11 19:34:33,407 - prediction_market - INFO - Starting: Loading data
+2025-11-11 19:34:33,407 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 19:34:33,487 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 19:34:33,489 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 19:34:33,489 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 19:34:33,489 - prediction_market - INFO - Feature groups identified:
+2025-11-11 19:34:33,489 - prediction_market - INFO -   M: 18 features
+2025-11-11 19:34:33,489 - prediction_market - INFO -   E: 20 features
+2025-11-11 19:34:33,489 - prediction_market - INFO -   I: 9 features
+2025-11-11 19:34:33,489 - prediction_market - INFO -   P: 13 features
+2025-11-11 19:34:33,489 - prediction_market - INFO -   V: 13 features
+2025-11-11 19:34:33,489 - prediction_market - INFO -   S: 12 features
+2025-11-11 19:34:33,489 - prediction_market - INFO -   D: 9 features
+2025-11-11 19:34:33,491 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 19:34:33,491 - prediction_market - INFO - Completed: Loading data - Time: 0.08s
+2025-11-11 19:34:33,491 - prediction_market - INFO - Using 3000 samples for testing
+2025-11-11 19:34:33,492 - prediction_market - INFO - Data shape: (3000, 98)
+2025-11-11 19:34:33,492 - prediction_market - INFO - Date range: 0 to 2999
+2025-11-11 19:34:33,492 - prediction_market - INFO - Completed: Loading data - Time: 0.09s
+2025-11-11 19:34:33,492 - prediction_market - INFO - 
+================================================================================
+2025-11-11 19:34:33,492 - prediction_market - INFO - Step 2: Feature Engineering
+2025-11-11 19:34:33,492 - prediction_market - INFO - Starting: Feature engineering
+2025-11-11 19:34:33,498 - prediction_market - INFO - Feature Engineering initialized
+2025-11-11 19:34:33,498 - prediction_market - INFO - Rolling windows: [5, 10, 20, 40, 60]
+2025-11-11 19:34:33,498 - prediction_market - INFO - Lag periods: [1, 2, 3, 5, 10]
+2025-11-11 19:34:33,498 - prediction_market - INFO - Scaler type: robust
+2025-11-11 19:34:33,498 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:33,498 - prediction_market - INFO - Starting Feature Engineering Pipeline
+2025-11-11 19:34:33,498 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:33,499 - prediction_market - INFO - Starting: Feature Engineering
+2025-11-11 19:34:33,499 - prediction_market - INFO - 
+Original features by group:
+2025-11-11 19:34:33,499 - prediction_market - INFO -   M (Market): 18 features
+2025-11-11 19:34:33,499 - prediction_market - INFO -   E (Economic): 20 features
+2025-11-11 19:34:33,499 - prediction_market - INFO -   P (Price): 13 features
+2025-11-11 19:34:33,499 - prediction_market - INFO -   V (Volatility): 13 features
+2025-11-11 19:34:33,499 - prediction_market - INFO -   S (Sentiment): 12 features
+2025-11-11 19:34:33,499 - prediction_market - INFO - 
+1. Creating rolling features...
+2025-11-11 19:34:33,535 - prediction_market - INFO - Created rolling features for 8 columns
+2025-11-11 19:34:33,535 - prediction_market - INFO - 
+2. Creating lag features...
+2025-11-11 19:34:33,543 - prediction_market - INFO - Created lag features for 11 columns
+2025-11-11 19:34:33,544 - prediction_market - INFO - 
+3. Creating difference features...
+2025-11-11 19:34:33,556 - prediction_market - INFO - Created difference features for 8 columns
+2025-11-11 19:34:33,556 - prediction_market - INFO - 
+4. Creating interaction features...
+2025-11-11 19:34:33,566 - prediction_market - INFO - Created interaction features for 3 group pairs
+2025-11-11 19:34:33,566 - prediction_market - INFO - 
+5. Creating technical features...
+2025-11-11 19:34:33,578 - prediction_market - INFO - Created technical features for 5 columns
+2025-11-11 19:34:33,578 - prediction_market - INFO - 
+6. Creating regime features...
+2025-11-11 19:34:33,714 - prediction_market - INFO - Created regime features for 3 columns
+2025-11-11 19:34:33,714 - prediction_market - INFO - Completed: Feature Engineering - Time: 0.22s
+2025-11-11 19:34:33,714 - prediction_market - INFO - 
+✓ Feature engineering complete!
+2025-11-11 19:34:33,714 - prediction_market - INFO -   Original features: 96
+2025-11-11 19:34:33,714 - prediction_market - INFO -   Engineered features: 446
+2025-11-11 19:34:33,714 - prediction_market - INFO -   Total features: 542
+2025-11-11 19:34:33,714 - prediction_market - INFO - Features created: 544
+2025-11-11 19:34:33,714 - prediction_market - INFO - Completed: Feature engineering - Time: 0.22s
+2025-11-11 19:34:33,714 - prediction_market - INFO - 
+================================================================================
+2025-11-11 19:34:33,714 - prediction_market - INFO - Step 3: Feature Selection
+2025-11-11 19:34:33,714 - prediction_market - INFO - Starting: Feature selection
+2025-11-11 19:34:33,714 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:33,714 - prediction_market - INFO - Feature Selection
+2025-11-11 19:34:33,714 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:33,714 - prediction_market - INFO - Method: correlation
+2025-11-11 19:34:33,714 - prediction_market - INFO - Top N: 100
+2025-11-11 19:34:33,714 - prediction_market - INFO - Threshold: None
+2025-11-11 19:34:33,715 - prediction_market - INFO - 
+Total features to evaluate: 540
+2025-11-11 19:34:34,247 - prediction_market - INFO - 
+✓ Selected top 100 features
+2025-11-11 19:34:34,247 - prediction_market - INFO - 
+Top 20 features by correlation:
+2025-11-11 19:34:34,247 - prediction_market - INFO -   V7: 0.0924
+2025-11-11 19:34:34,247 - prediction_market - INFO -   M4: 0.0909
+2025-11-11 19:34:34,247 - prediction_market - INFO -   V13: 0.0893
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P10_diff_5: 0.0841
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P11_diff_5: 0.0775
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P10_diff_10: 0.0727
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P10_pct_5: 0.0726
+2025-11-11 19:34:34,247 - prediction_market - INFO -   E19: 0.0726
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P11_diff_10: 0.0659
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P10_momentum_10: 0.0629
+2025-11-11 19:34:34,247 - prediction_market - INFO -   P10_pct_10: 0.0629
+2025-11-11 19:34:34,247 - prediction_market - INFO -   S2: 0.0586
+2025-11-11 19:34:34,248 - prediction_market - INFO -   P12_momentum_20: 0.0585
+2025-11-11 19:34:34,248 - prediction_market - INFO -   P10_diff_1: 0.0565
+2025-11-11 19:34:34,248 - prediction_market - INFO -   M10_zscore_5: 0.0542
+2025-11-11 19:34:34,248 - prediction_market - INFO -   M11_dev_60: 0.0538
+2025-11-11 19:34:34,248 - prediction_market - INFO -   P10_momentum_20: 0.0509
+2025-11-11 19:34:34,248 - prediction_market - INFO -   M11_dev_40: 0.0504
+2025-11-11 19:34:34,248 - prediction_market - INFO -   E1_x_S11: 0.0502
+2025-11-11 19:34:34,248 - prediction_market - INFO -   E1_x_S10: 0.0502
+2025-11-11 19:34:34,248 - prediction_market - INFO - 
+✓ Feature selection complete
+2025-11-11 19:34:34,248 - prediction_market - INFO -   Selected features: 100
+2025-11-11 19:34:34,248 - prediction_market - INFO -   Dataframe shape: (3000, 104)
+2025-11-11 19:34:34,248 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:34,248 - prediction_market - INFO - Removing Correlated Features
+2025-11-11 19:34:34,248 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:34,248 - prediction_market - INFO - Threshold: 0.95
+2025-11-11 19:34:34,310 - prediction_market - INFO - 
+✓ Found 39 highly correlated features to remove
+2025-11-11 19:34:34,310 - prediction_market - INFO - 
+Removing features (sample):
+2025-11-11 19:34:34,310 - prediction_market - INFO -   M10_lag_5
+2025-11-11 19:34:34,310 - prediction_market - INFO -   E11
+2025-11-11 19:34:34,310 - prediction_market - INFO -   E11_lag_10
+2025-11-11 19:34:34,310 - prediction_market - INFO -   S4
+2025-11-11 19:34:34,310 - prediction_market - INFO -   E10_lag_1
+2025-11-11 19:34:34,310 - prediction_market - INFO -   M10_roll_mean_5
+2025-11-11 19:34:34,310 - prediction_market - INFO -   E10_lag_2
+2025-11-11 19:34:34,310 - prediction_market - INFO -   E10_lag_5
+2025-11-11 19:34:34,310 - prediction_market - INFO -   M10_x_V11
+2025-11-11 19:34:34,310 - prediction_market - INFO -   P11_pct_10
+2025-11-11 19:34:34,310 - prediction_market - INFO - 
+✓ Correlation filtering complete
+2025-11-11 19:34:34,310 - prediction_market - INFO -   Removed features: 39
+2025-11-11 19:34:34,310 - prediction_market - INFO -   Remaining features: 63
+2025-11-11 19:34:34,310 - prediction_market - INFO - Selected features: 61
+2025-11-11 19:34:34,310 - prediction_market - INFO - Completed: Feature selection - Time: 0.60s
+2025-11-11 19:34:34,310 - prediction_market - INFO - 
+Final dataset:
+2025-11-11 19:34:34,310 - prediction_market - INFO -   Features: 61
+2025-11-11 19:34:34,310 - prediction_market - INFO -   Samples: 3000
+2025-11-11 19:34:34,310 - prediction_market - INFO -   Target: forward_returns
+2025-11-11 19:34:34,310 - prediction_market - INFO - 
+================================================================================
+2025-11-11 19:34:34,310 - prediction_market - INFO - Step 4: Hyperparameter Tuning
+2025-11-11 19:34:34,310 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:34,310 - prediction_market - INFO - Running 10 trials (use more for production)
+2025-11-11 19:34:34,311 - prediction_market - INFO - Starting: Hyperparameter tuning
+2025-11-11 19:34:34,322 - prediction_market - INFO - CV Strategy initialized
+2025-11-11 19:34:34,322 - prediction_market - INFO - Configuration: {'n_splits': 5, 'embargo': 5, 'purge': True, 'train_ratio': 0.8}
+2025-11-11 19:34:34,322 - prediction_market - INFO - OptunaLightGBMTuner initialized
+2025-11-11 19:34:34,322 - prediction_market - INFO - Trials: 10, Timeout: None, Jobs: 1
+2025-11-11 19:34:34,322 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:34,322 - prediction_market - INFO - Starting Hyperparameter Optimization
+2025-11-11 19:34:34,322 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:34,322 - prediction_market - INFO - 
+Features: 61
+2025-11-11 19:34:34,322 - prediction_market - INFO - Samples: 3000
+2025-11-11 19:34:34,323 - prediction_market - INFO - Target: forward_returns
+2025-11-11 19:34:34,323 - prediction_market - INFO - 
+Trials: 10
+2025-11-11 19:34:34,323 - prediction_market - INFO - Timeout: None
+2025-11-11 19:34:34,323 - prediction_market - INFO - Jobs: 1
+2025-11-11 19:34:34,323 - prediction_market - INFO - Starting: Hyperparameter Optimization
+[I 2025-11-11 19:34:34,323] A new study created in memory with name: lightgbm_phase3_test
+  0%|          | 0/10 [00:00<?, ?it/s]2025-11-11 19:34:34,339 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:34,339 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:34,339 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:34,339 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:34,339 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:34,340 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:34,340 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:34,340 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                        0%|          | 0/10 [00:00<?, ?it/s]Best trial: 0. Best value: 0.00967546:   0%|          | 0/10 [00:00<?, ?it/s]Best trial: 0. Best value: 0.00967546:  10%|█         | 1/10 [00:00<00:01,  7.57it/s]2025-11-11 19:34:34,469 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:34,470 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:34,470 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:34,470 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:34,470 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:34,470 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:34,470 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:34,470 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 0. Best value: 0.00967546:  10%|█         | 1/10 [00:00<00:01,  7.57it/s]Best trial: 1. Best value: 0.00964271:  10%|█         | 1/10 [00:00<00:01,  7.57it/s]Best trial: 1. Best value: 0.00964271:  20%|██        | 2/10 [00:00<00:02,  2.81it/s]2025-11-11 19:34:34,982 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:34,982 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:34,982 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:34,982 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:34,982 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:34,982 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:34,982 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:34,982 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 1. Best value: 0.00964271:  20%|██        | 2/10 [00:01<00:02,  2.81it/s]Best trial: 1. Best value: 0.00964271:  20%|██        | 2/10 [00:01<00:02,  2.81it/s]Best trial: 1. Best value: 0.00964271:  30%|███       | 3/10 [00:01<00:02,  2.58it/s]2025-11-11 19:34:35,408 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:35,408 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:35,408 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:35,408 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:35,408 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:35,408 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:35,409 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:35,409 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 1. Best value: 0.00964271:  30%|███       | 3/10 [00:01<00:02,  2.58it/s]Best trial: 1. Best value: 0.00964271:  30%|███       | 3/10 [00:01<00:02,  2.58it/s]Best trial: 1. Best value: 0.00964271:  40%|████      | 4/10 [00:01<00:01,  3.53it/s]2025-11-11 19:34:35,531 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:35,531 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:35,531 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:35,531 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:35,532 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:35,532 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:35,532 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:35,532 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 1. Best value: 0.00964271:  40%|████      | 4/10 [00:01<00:01,  3.53it/s]Best trial: 1. Best value: 0.00964271:  40%|████      | 4/10 [00:01<00:01,  3.53it/s]Best trial: 1. Best value: 0.00964271:  50%|█████     | 5/10 [00:01<00:01,  4.46it/s]2025-11-11 19:34:35,651 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:35,651 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:35,651 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:35,651 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:35,651 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:35,651 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:35,651 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:35,651 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 1. Best value: 0.00964271:  50%|█████     | 5/10 [00:01<00:01,  4.46it/s]Best trial: 1. Best value: 0.00964271:  50%|█████     | 5/10 [00:01<00:01,  4.46it/s]Best trial: 1. Best value: 0.00964271:  60%|██████    | 6/10 [00:01<00:00,  5.27it/s]2025-11-11 19:34:35,774 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:35,774 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:35,774 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:35,774 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:35,774 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:35,774 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:35,775 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:35,775 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 1. Best value: 0.00964271:  60%|██████    | 6/10 [00:01<00:00,  5.27it/s]Best trial: 6. Best value: 0.00963215:  60%|██████    | 6/10 [00:01<00:00,  5.27it/s]Best trial: 6. Best value: 0.00963215:  70%|███████   | 7/10 [00:01<00:00,  4.44it/s]2025-11-11 19:34:36,071 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:36,071 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:36,071 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:36,071 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:36,072 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:36,072 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:36,072 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:36,072 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 6. Best value: 0.00963215:  70%|███████   | 7/10 [00:02<00:00,  4.44it/s]Best trial: 6. Best value: 0.00963215:  70%|███████   | 7/10 [00:02<00:00,  4.44it/s]Best trial: 6. Best value: 0.00963215:  80%|████████  | 8/10 [00:02<00:01,  1.95it/s]2025-11-11 19:34:37,200 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:37,200 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:37,200 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:37,200 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:37,200 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:37,200 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:37,200 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:37,200 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 6. Best value: 0.00963215:  80%|████████  | 8/10 [00:03<00:01,  1.95it/s]Best trial: 6. Best value: 0.00963215:  80%|████████  | 8/10 [00:03<00:01,  1.95it/s]Best trial: 6. Best value: 0.00963215:  90%|█████████ | 9/10 [00:03<00:00,  2.07it/s]2025-11-11 19:34:37,618 - prediction_market - INFO - Starting Purged Walk-Forward CV with 5 splits
+2025-11-11 19:34:37,618 - prediction_market - INFO - Total dates: 3000, Fold size: 600
+2025-11-11 19:34:37,618 - prediction_market - INFO - Embargo: 5, Purge: True, Train ratio: 0.8
+2025-11-11 19:34:37,618 - prediction_market - WARNING - Fold 1: Not enough training data, skipping
+2025-11-11 19:34:37,618 - prediction_market - INFO - Fold 2/5: Train dates: 600 (0 to 599), Val dates: 600 (600 to 1199), Train samples: 600, Val samples: 600
+2025-11-11 19:34:37,618 - prediction_market - INFO - Fold 3/5: Train dates: 1200 (0 to 1199), Val dates: 600 (1200 to 1799), Train samples: 1200, Val samples: 600
+2025-11-11 19:34:37,618 - prediction_market - INFO - Fold 4/5: Train dates: 1800 (0 to 1799), Val dates: 600 (1800 to 2399), Train samples: 1800, Val samples: 600
+2025-11-11 19:34:37,619 - prediction_market - INFO - Fold 5/5: Train dates: 2400 (0 to 2399), Val dates: 600 (2400 to 2999), Train samples: 2400, Val samples: 600
+                                                                                     Best trial: 6. Best value: 0.00963215:  90%|█████████ | 9/10 [00:03<00:00,  2.07it/s]Best trial: 6. Best value: 0.00963215:  90%|█████████ | 9/10 [00:03<00:00,  2.07it/s]Best trial: 6. Best value: 0.00963215: 100%|██████████| 10/10 [00:03<00:00,  2.69it/s]Best trial: 6. Best value: 0.00963215: 100%|██████████| 10/10 [00:03<00:00,  2.94it/s]
+2025-11-11 19:34:37,740 - prediction_market - INFO - 
+================================================================================
+2025-11-11 19:34:37,740 - prediction_market - INFO - Optimization Results
+2025-11-11 19:34:37,740 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:37,740 - prediction_market - INFO - 
+Best Score (RMSE): 0.009632
+2025-11-11 19:34:37,740 - prediction_market - INFO - Best Trial: 6
+2025-11-11 19:34:37,741 - prediction_market - INFO - 
+Best Parameters:
+2025-11-11 19:34:37,741 - prediction_market - INFO -   num_leaves: 68
+2025-11-11 19:34:37,741 - prediction_market - INFO -   learning_rate: 0.22999586428143734
+2025-11-11 19:34:37,741 - prediction_market - INFO -   feature_fraction: 0.6353970008207678
+2025-11-11 19:34:37,741 - prediction_market - INFO -   bagging_fraction: 0.678393144967658
+2025-11-11 19:34:37,741 - prediction_market - INFO -   bagging_freq: 1
+2025-11-11 19:34:37,741 - prediction_market - INFO -   min_child_samples: 39
+2025-11-11 19:34:37,741 - prediction_market - INFO -   max_depth: 6
+2025-11-11 19:34:37,741 - prediction_market - INFO -   reg_alpha: 2.7678419414850017e-06
+2025-11-11 19:34:37,741 - prediction_market - INFO -   reg_lambda: 0.287499823474079
+2025-11-11 19:34:37,741 - prediction_market - INFO - Completed: Hyperparameter Optimization - Time: 3.42s
+2025-11-11 19:34:37,742 - prediction_market - INFO - Study saved to artifacts/tuning/lightgbm_study_test.pkl
+2025-11-11 19:34:37,743 - prediction_market - INFO - Best parameters saved to artifacts/tuning/lightgbm_best_params_test.json
+2025-11-11 19:34:37,755 - prediction_market - INFO - Optimization history saved to artifacts/tuning/optimization_history.csv
+2025-11-11 19:34:37,755 - prediction_market - INFO - Completed: Hyperparameter tuning - Time: 3.44s
+2025-11-11 19:34:37,756 - prediction_market - INFO - 
+✓ Tuning complete
+2025-11-11 19:34:37,756 - prediction_market - INFO - Best Score: 0.009632
+2025-11-11 19:34:37,756 - prediction_market - INFO - Best Parameters saved to artifacts/tuning/
+2025-11-11 19:34:37,756 - prediction_market - INFO - 
+================================================================================
+2025-11-11 19:34:37,756 - prediction_market - INFO - Step 5: Model Interpretability Analysis
+2025-11-11 19:34:37,756 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:37,757 - prediction_market - INFO - Loaded 4 models
+2025-11-11 19:34:37,758 - prediction_market - INFO - Starting: Creating interpreter
+2025-11-11 19:34:37,758 - prediction_market - INFO - ModelInterpreter initialized
+2025-11-11 19:34:37,758 - prediction_market - INFO - Models: 4, Features: 61
+2025-11-11 19:34:37,758 - prediction_market - INFO - Completed: Creating interpreter - Time: 0.00s
+2025-11-11 19:34:37,758 - prediction_market - INFO - Starting: Feature importance calculation
+2025-11-11 19:34:37,758 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:37,758 - prediction_market - INFO - Calculating Feature Importance
+2025-11-11 19:34:37,758 - prediction_market - INFO - ================================================================================
+2025-11-11 19:34:37,758 - prediction_market - INFO - Importance type: gain
+2025-11-11 19:34:37,758 - prediction_market - INFO - Starting: Feature Importance Calculation
+2025-11-11 19:34:37,758 - prediction_market - INFO - Completed: Feature Importance Calculation - Time: 0.00s
+2025-11-11 19:34:37,758 - prediction_market - INFO - Completed: Feature importance calculation - Time: 0.00s
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.00714653
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.0122134
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[6]	valid_0's rmse: 0.0134523
+[I 2025-11-11 19:34:34,468] Trial 0 finished with value: 0.009675463458958101 and parameters: {'num_leaves': 50, 'learning_rate': 0.2536999076681771, 'feature_fraction': 0.8927975767245621, 'bagging_fraction': 0.8394633936788146, 'bagging_freq': 2, 'min_child_samples': 24, 'max_depth': 3, 'reg_alpha': 0.6245760287469887, 'reg_lambda': 0.002570603566117596}. Best is trial 0 with value: 0.009675463458958101.
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[8]	valid_0's rmse: 0.00588902
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[18]	valid_0's rmse: 0.00714397
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[109]	valid_0's rmse: 0.0121206
+Training until validation scores don't improve for 50 rounds
+[I 2025-11-11 19:34:34,981] Trial 1 finished with value: 0.009642713519628093 and parameters: {'num_leaves': 77, 'learning_rate': 0.010725209743171997, 'feature_fraction': 0.9879639408647978, 'bagging_fraction': 0.9329770563201687, 'bagging_freq': 3, 'min_child_samples': 26, 'max_depth': 4, 'reg_alpha': 5.472429642032189e-06, 'reg_lambda': 0.00052821153945323}. Best is trial 1 with value: 0.009642713519628093.
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[40]	valid_0's rmse: 0.00588856
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[75]	valid_0's rmse: 0.00714347
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[33]	valid_0's rmse: 0.0121912
+Training until validation scores don't improve for 50 rounds
+[I 2025-11-11 19:34:35,407] Trial 2 finished with value: 0.009661728734687 and parameters: {'num_leaves': 54, 'learning_rate': 0.02692655251486473, 'feature_fraction': 0.8447411578889518, 'bagging_fraction': 0.6557975442608167, 'bagging_freq': 3, 'min_child_samples': 43, 'max_depth': 7, 'reg_alpha': 0.11656915613247415, 'reg_lambda': 6.267062696005991e-07}. Best is trial 1 with value: 0.009642713519628093.
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.00714653
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.0122134
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.0134609
+[I 2025-11-11 19:34:35,530] Trial 3 finished with value: 0.009677625984951779 and parameters: {'num_leaves': 61, 'learning_rate': 0.07500118950416987, 'feature_fraction': 0.6185801650879991, 'bagging_fraction': 0.8430179407605753, 'bagging_freq': 2, 'min_child_samples': 15, 'max_depth': 12, 'reg_alpha': 4.905556676028766, 'reg_lambda': 0.1886149587855396}. Best is trial 1 with value: 0.009642713519628093.
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.00714653
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.0134609
+[I 2025-11-11 19:34:35,650] Trial 4 finished with value: 0.009677625984951779 and parameters: {'num_leaves': 44, 'learning_rate': 0.013940346079873234, 'feature_fraction': 0.8736932106048627, 'bagging_fraction': 0.7760609974958405, 'bagging_freq': 2, 'min_child_samples': 55, 'max_depth': 3, 'reg_alpha': 1.5271567592511939, 'reg_lambda': 2.133142332373e-06}. Best is trial 1 with value: 0.009642713519628093.
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.00588962
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.0122134
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.0134609
+[I 2025-11-11 19:34:35,773] Trial 5 finished with value: 0.009677625984951779 and parameters: {'num_leaves': 73, 'learning_rate': 0.028869220380495747, 'feature_fraction': 0.8080272084711243, 'bagging_fraction': 0.8186841117373118, 'bagging_freq': 2, 'min_child_samples': 98, 'max_depth': 10, 'reg_alpha': 2.8542399074977594, 'reg_lambda': 1.1309571585271492}. Best is trial 1 with value: 0.009642713519628093.
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[11]	valid_0's rmse: 0.00711058
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[6]	valid_0's rmse: 0.0133909
+[I 2025-11-11 19:34:36,070] Trial 6 finished with value: 0.009632149414185191 and parameters: {'num_leaves': 68, 'learning_rate': 0.22999586428143734, 'feature_fraction': 0.6353970008207678, 'bagging_fraction': 0.678393144967658, 'bagging_freq': 1, 'min_child_samples': 39, 'max_depth': 6, 'reg_alpha': 2.7678419414850017e-06, 'reg_lambda': 0.287499823474079}. Best is trial 6 with value: 0.009632149414185191.
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[125]	valid_0's rmse: 0.0121617
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[44]	valid_0's rmse: 0.0134253
+[I 2025-11-11 19:34:37,199] Trial 7 finished with value: 0.009652174467457121 and parameters: {'num_leaves': 48, 'learning_rate': 0.026000059117302653, 'feature_fraction': 0.8170784332632994, 'bagging_fraction': 0.6563696899899051, 'bagging_freq': 9, 'min_child_samples': 16, 'max_depth': 12, 'reg_alpha': 0.08916674715636552, 'reg_lambda': 6.143857495033091e-07}. Best is trial 6 with value: 0.009632149414185191.
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.00588829
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[3]	valid_0's rmse: 0.0071252
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.01346
+[I 2025-11-11 19:34:37,617] Trial 8 finished with value: 0.009656752557853802 and parameters: {'num_leaves': 20, 'learning_rate': 0.16015312171361207, 'feature_fraction': 0.8827429375390469, 'bagging_fraction': 0.8916028672163949, 'bagging_freq': 8, 'min_child_samples': 16, 'max_depth': 6, 'reg_alpha': 1.1036250149900698e-07, 'reg_lambda': 0.5860448217200526}. Best is trial 6 with value: 0.009632149414185191.
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+Early stopping, best iteration is:
+[1]	valid_0's rmse: 0.00714653
+Training until validation scores don't improve for 50 rounds
+Training until validation scores don't improve for 50 rounds
+[I 2025-11-11 19:34:37,740] Trial 9 finished with value: 0.009677625984951779 and parameters: {'num_leaves': 70, 'learning_rate': 0.030816017044468066, 'feature_fraction': 0.6254233401144095, 'bagging_fraction': 0.7243929286862648, 'bagging_freq': 4, 'min_child_samples': 76, 'max_depth': 9, 'reg_alpha': 0.9658611176861261, 'reg_lambda': 0.0001778010520878397}. Best is trial 6 with value: 0.009632149414185191.
+Traceback (most recent call last):
+  File "/Users/gimjunseog/projects/kaggle/Prediction_Market/scripts/test_phase3_final.py", line 255, in <module>
+    test_tuning_and_interpretability()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/gimjunseog/projects/kaggle/Prediction_Market/scripts/test_phase3_final.py", line 178, in test_tuning_and_interpretability
+    importance_df = interpreter.calculate_feature_importance(importance_type='gain')
+  File "/Users/gimjunseog/projects/kaggle/Prediction_Market/src/interpretability.py", line 104, in calculate_feature_importance
+    importance = model.feature_importances_
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Booster' object has no attribute 'feature_importances_'. Did you mean: 'feature_importance'?

@@ -1,0 +1,258 @@
+2025-11-11 13:39:01,267 - prediction_market - INFO - Starting: Loading data
+2025-11-11 13:39:01,276 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 13:39:01,548 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 13:39:01,557 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 13:39:01,557 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 13:39:01,558 - prediction_market - INFO - Feature groups identified:
+2025-11-11 13:39:01,558 - prediction_market - INFO -   M: 18 features
+2025-11-11 13:39:01,559 - prediction_market - INFO -   E: 20 features
+2025-11-11 13:39:01,559 - prediction_market - INFO -   I: 9 features
+2025-11-11 13:39:01,560 - prediction_market - INFO -   P: 13 features
+2025-11-11 13:39:01,560 - prediction_market - INFO -   V: 13 features
+2025-11-11 13:39:01,561 - prediction_market - INFO -   S: 12 features
+2025-11-11 13:39:01,561 - prediction_market - INFO -   D: 9 features
+2025-11-11 13:39:01,686 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 13:39:01,687 - prediction_market - INFO - Completed: Loading data - Time: 0.42s
+2025-11-11 13:39:21,953 - prediction_market - INFO - Starting: Loading data
+2025-11-11 13:39:21,956 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 13:39:22,081 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 13:39:22,084 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 13:39:22,084 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 13:39:22,085 - prediction_market - INFO - Feature groups identified:
+2025-11-11 13:39:22,085 - prediction_market - INFO -   M: 18 features
+2025-11-11 13:39:22,085 - prediction_market - INFO -   E: 20 features
+2025-11-11 13:39:22,086 - prediction_market - INFO -   I: 9 features
+2025-11-11 13:39:22,087 - prediction_market - INFO -   P: 13 features
+2025-11-11 13:39:22,087 - prediction_market - INFO -   V: 13 features
+2025-11-11 13:39:22,088 - prediction_market - INFO -   S: 12 features
+2025-11-11 13:39:22,088 - prediction_market - INFO -   D: 9 features
+2025-11-11 13:39:22,091 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 13:39:22,092 - prediction_market - INFO - Completed: Loading data - Time: 0.14s
+2025-11-11 13:43:21,948 - prediction_market - INFO - Starting: Loading data
+2025-11-11 13:43:21,951 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 13:43:22,064 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 13:43:22,070 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 13:43:22,070 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 13:43:22,070 - prediction_market - INFO - Feature groups identified:
+2025-11-11 13:43:22,071 - prediction_market - INFO -   M: 18 features
+2025-11-11 13:43:22,072 - prediction_market - INFO -   E: 20 features
+2025-11-11 13:43:22,072 - prediction_market - INFO -   I: 9 features
+2025-11-11 13:43:22,072 - prediction_market - INFO -   P: 13 features
+2025-11-11 13:43:22,073 - prediction_market - INFO -   V: 13 features
+2025-11-11 13:43:22,074 - prediction_market - INFO -   S: 12 features
+2025-11-11 13:43:22,074 - prediction_market - INFO -   D: 9 features
+2025-11-11 13:43:22,082 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 13:43:22,083 - prediction_market - INFO - Completed: Loading data - Time: 0.13s
+2025-11-11 13:46:39,144 - prediction_market - INFO - Starting: Loading data
+2025-11-11 13:46:39,147 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 13:46:39,290 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 13:46:39,293 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 13:46:39,293 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 13:46:39,294 - prediction_market - INFO - Feature groups identified:
+2025-11-11 13:46:39,295 - prediction_market - INFO -   M: 18 features
+2025-11-11 13:46:39,295 - prediction_market - INFO -   E: 20 features
+2025-11-11 13:46:39,295 - prediction_market - INFO -   I: 9 features
+2025-11-11 13:46:39,296 - prediction_market - INFO -   P: 13 features
+2025-11-11 13:46:39,296 - prediction_market - INFO -   V: 13 features
+2025-11-11 13:46:39,297 - prediction_market - INFO -   S: 12 features
+2025-11-11 13:46:39,297 - prediction_market - INFO -   D: 9 features
+2025-11-11 13:46:39,306 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 13:46:39,307 - prediction_market - INFO - Completed: Loading data - Time: 0.16s
+2025-11-11 14:25:16,538 - prediction_market - INFO - Benchmark Score: 0.0447
+2025-11-11 14:25:16,543 - prediction_market - INFO - Annual Sharpe: 0.7100
+2025-11-11 14:25:16,543 - prediction_market - INFO - Volatility Penalty: 1.0000
+2025-11-11 14:25:16,544 - prediction_market - INFO - Max Drawdown: -49.24%
+2025-11-11 14:49:05,980 - prediction_market - INFO - Starting: Loading data
+2025-11-11 14:49:05,982 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 14:49:06,075 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 14:49:06,078 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 14:49:06,078 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 14:49:06,079 - prediction_market - INFO - Feature groups identified:
+2025-11-11 14:49:06,079 - prediction_market - INFO -   M: 18 features
+2025-11-11 14:49:06,079 - prediction_market - INFO -   E: 20 features
+2025-11-11 14:49:06,080 - prediction_market - INFO -   I: 9 features
+2025-11-11 14:49:06,080 - prediction_market - INFO -   P: 13 features
+2025-11-11 14:49:06,080 - prediction_market - INFO -   V: 13 features
+2025-11-11 14:49:06,081 - prediction_market - INFO -   S: 12 features
+2025-11-11 14:49:06,081 - prediction_market - INFO -   D: 9 features
+2025-11-11 14:49:06,086 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 14:49:06,086 - prediction_market - INFO - Completed: Loading data - Time: 0.11s
+2025-11-11 14:49:56,666 - prediction_market - INFO - Starting: Loading data
+2025-11-11 14:49:56,668 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 14:49:56,743 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 14:49:56,745 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 14:49:56,746 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 14:49:56,746 - prediction_market - INFO - Feature groups identified:
+2025-11-11 14:49:56,746 - prediction_market - INFO -   M: 18 features
+2025-11-11 14:49:56,747 - prediction_market - INFO -   E: 20 features
+2025-11-11 14:49:56,747 - prediction_market - INFO -   I: 9 features
+2025-11-11 14:49:56,748 - prediction_market - INFO -   P: 13 features
+2025-11-11 14:49:56,748 - prediction_market - INFO -   V: 13 features
+2025-11-11 14:49:56,748 - prediction_market - INFO -   S: 12 features
+2025-11-11 14:49:56,749 - prediction_market - INFO -   D: 9 features
+2025-11-11 14:49:56,752 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 14:49:56,752 - prediction_market - INFO - Completed: Loading data - Time: 0.09s
+2025-11-11 14:53:30,229 - prediction_market - INFO - Starting: Loading data
+2025-11-11 14:53:30,230 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 14:53:30,418 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 14:53:30,422 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 14:53:30,422 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 14:53:30,422 - prediction_market - INFO - Feature groups identified:
+2025-11-11 14:53:30,423 - prediction_market - INFO -   M: 18 features
+2025-11-11 14:53:30,423 - prediction_market - INFO -   E: 20 features
+2025-11-11 14:53:30,424 - prediction_market - INFO -   I: 9 features
+2025-11-11 14:53:30,424 - prediction_market - INFO -   P: 13 features
+2025-11-11 14:53:30,425 - prediction_market - INFO -   V: 13 features
+2025-11-11 14:53:30,425 - prediction_market - INFO -   S: 12 features
+2025-11-11 14:53:30,425 - prediction_market - INFO -   D: 9 features
+2025-11-11 14:53:30,430 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 14:53:30,431 - prediction_market - INFO - Completed: Loading data - Time: 0.20s
+2025-11-11 14:53:33,079 - prediction_market - INFO - Starting: Loading data
+2025-11-11 14:53:33,080 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 14:53:33,163 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 14:53:33,165 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 14:53:33,166 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 14:53:33,166 - prediction_market - INFO - Feature groups identified:
+2025-11-11 14:53:33,167 - prediction_market - INFO -   M: 18 features
+2025-11-11 14:53:33,167 - prediction_market - INFO -   E: 20 features
+2025-11-11 14:53:33,167 - prediction_market - INFO -   I: 9 features
+2025-11-11 14:53:33,168 - prediction_market - INFO -   P: 13 features
+2025-11-11 14:53:33,168 - prediction_market - INFO -   V: 13 features
+2025-11-11 14:53:33,168 - prediction_market - INFO -   S: 12 features
+2025-11-11 14:53:33,169 - prediction_market - INFO -   D: 9 features
+2025-11-11 14:53:33,172 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 14:53:33,173 - prediction_market - INFO - Completed: Loading data - Time: 0.09s
+2025-11-11 15:06:30,910 - prediction_market - INFO - Starting: Loading data
+2025-11-11 15:06:30,912 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 15:06:31,081 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 15:06:31,090 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 15:06:31,090 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 15:06:31,091 - prediction_market - INFO - Feature groups identified:
+2025-11-11 15:06:31,091 - prediction_market - INFO -   M: 18 features
+2025-11-11 15:06:31,092 - prediction_market - INFO -   E: 20 features
+2025-11-11 15:06:31,092 - prediction_market - INFO -   I: 9 features
+2025-11-11 15:06:31,093 - prediction_market - INFO -   P: 13 features
+2025-11-11 15:06:31,094 - prediction_market - INFO -   V: 13 features
+2025-11-11 15:06:31,094 - prediction_market - INFO -   S: 12 features
+2025-11-11 15:06:31,094 - prediction_market - INFO -   D: 9 features
+2025-11-11 15:06:31,103 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 15:06:31,104 - prediction_market - INFO - Completed: Loading data - Time: 0.19s
+2025-11-11 15:07:39,748 - prediction_market - INFO - Starting: Loading data
+2025-11-11 15:07:39,752 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 15:07:39,838 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 15:07:39,841 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 15:07:39,841 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 15:07:39,842 - prediction_market - INFO - Feature groups identified:
+2025-11-11 15:07:39,842 - prediction_market - INFO -   M: 18 features
+2025-11-11 15:07:39,843 - prediction_market - INFO -   E: 20 features
+2025-11-11 15:07:39,843 - prediction_market - INFO -   I: 9 features
+2025-11-11 15:07:39,844 - prediction_market - INFO -   P: 13 features
+2025-11-11 15:07:39,844 - prediction_market - INFO -   V: 13 features
+2025-11-11 15:07:39,846 - prediction_market - INFO -   S: 12 features
+2025-11-11 15:07:39,847 - prediction_market - INFO -   D: 9 features
+2025-11-11 15:07:39,853 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 15:07:39,853 - prediction_market - INFO - Completed: Loading data - Time: 0.11s
+2025-11-11 15:08:10,851 - prediction_market - INFO - Starting: Loading data
+2025-11-11 15:08:10,852 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 15:08:10,947 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 15:08:10,950 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 15:08:10,952 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 15:08:10,952 - prediction_market - INFO - Feature groups identified:
+2025-11-11 15:08:10,956 - prediction_market - INFO -   M: 18 features
+2025-11-11 15:08:10,956 - prediction_market - INFO -   E: 20 features
+2025-11-11 15:08:10,958 - prediction_market - INFO -   I: 9 features
+2025-11-11 15:08:10,959 - prediction_market - INFO -   P: 13 features
+2025-11-11 15:08:10,963 - prediction_market - INFO -   V: 13 features
+2025-11-11 15:08:10,963 - prediction_market - INFO -   S: 12 features
+2025-11-11 15:08:10,964 - prediction_market - INFO -   D: 9 features
+2025-11-11 15:08:10,974 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 15:08:10,975 - prediction_market - INFO - Completed: Loading data - Time: 0.12s
+2025-11-11 15:15:52,280 - prediction_market - INFO - Starting: Loading data
+2025-11-11 15:15:52,281 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 15:15:52,361 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 15:15:52,364 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 15:15:52,364 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 15:15:52,364 - prediction_market - INFO - Feature groups identified:
+2025-11-11 15:15:52,365 - prediction_market - INFO -   M: 18 features
+2025-11-11 15:15:52,365 - prediction_market - INFO -   E: 20 features
+2025-11-11 15:15:52,366 - prediction_market - INFO -   I: 9 features
+2025-11-11 15:15:52,366 - prediction_market - INFO -   P: 13 features
+2025-11-11 15:15:52,366 - prediction_market - INFO -   V: 13 features
+2025-11-11 15:15:52,367 - prediction_market - INFO -   S: 12 features
+2025-11-11 15:15:52,367 - prediction_market - INFO -   D: 9 features
+2025-11-11 15:15:52,372 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 15:15:52,373 - prediction_market - INFO - Completed: Loading data - Time: 0.09s
+2025-11-11 17:36:42,834 - prediction_market - INFO - Starting: Loading data
+2025-11-11 17:36:42,835 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-11 17:36:42,992 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-11 17:36:42,996 - prediction_market - INFO - Train shape: (9021, 98)
+2025-11-11 17:36:42,996 - prediction_market - INFO - Test shape: (10, 99)
+2025-11-11 17:36:42,996 - prediction_market - INFO - Feature groups identified:
+2025-11-11 17:36:42,997 - prediction_market - INFO -   M: 18 features
+2025-11-11 17:36:42,997 - prediction_market - INFO -   E: 20 features
+2025-11-11 17:36:42,998 - prediction_market - INFO -   I: 9 features
+2025-11-11 17:36:42,998 - prediction_market - INFO -   P: 13 features
+2025-11-11 17:36:42,998 - prediction_market - INFO -   V: 13 features
+2025-11-11 17:36:42,999 - prediction_market - INFO -   S: 12 features
+2025-11-11 17:36:42,999 - prediction_market - INFO -   D: 9 features
+2025-11-11 17:36:43,003 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-11 17:36:43,004 - prediction_market - INFO - Completed: Loading data - Time: 0.17s
+2025-11-13 09:37:07,824 - prediction_market - INFO - Starting: Loading data
+2025-11-13 09:37:07,826 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-13 09:37:07,914 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-13 09:37:07,917 - prediction_market - INFO - Feature groups identified:
+2025-11-13 09:37:07,918 - prediction_market - INFO -   M: 18 features
+2025-11-13 09:37:07,918 - prediction_market - INFO -   E: 20 features
+2025-11-13 09:37:07,918 - prediction_market - INFO -   I: 9 features
+2025-11-13 09:37:07,918 - prediction_market - INFO -   P: 13 features
+2025-11-13 09:37:07,919 - prediction_market - INFO -   V: 13 features
+2025-11-13 09:37:07,919 - prediction_market - INFO -   S: 12 features
+2025-11-13 09:37:07,920 - prediction_market - INFO -   D: 9 features
+2025-11-13 09:37:07,924 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-13 09:37:07,925 - prediction_market - INFO - Completed: Loading data - Time: 0.10s
+2025-11-13 09:37:37,342 - prediction_market - INFO - Starting: Loading data
+2025-11-13 09:37:37,343 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-13 09:37:37,430 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-13 09:37:37,433 - prediction_market - INFO - Feature groups identified:
+2025-11-13 09:37:37,433 - prediction_market - INFO -   M: 18 features
+2025-11-13 09:37:37,434 - prediction_market - INFO -   E: 20 features
+2025-11-13 09:37:37,434 - prediction_market - INFO -   I: 9 features
+2025-11-13 09:37:37,434 - prediction_market - INFO -   P: 13 features
+2025-11-13 09:37:37,435 - prediction_market - INFO -   V: 13 features
+2025-11-13 09:37:37,435 - prediction_market - INFO -   S: 12 features
+2025-11-13 09:37:37,435 - prediction_market - INFO -   D: 9 features
+2025-11-13 09:37:37,439 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-13 09:37:37,439 - prediction_market - INFO - Completed: Loading data - Time: 0.10s
+2025-11-13 09:38:20,582 - prediction_market - INFO - Starting: Loading data
+2025-11-13 09:38:20,583 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-13 09:38:20,662 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-13 09:38:20,665 - prediction_market - INFO - Feature groups identified:
+2025-11-13 09:38:20,666 - prediction_market - INFO -   M: 18 features
+2025-11-13 09:38:20,666 - prediction_market - INFO -   E: 20 features
+2025-11-13 09:38:20,666 - prediction_market - INFO -   I: 9 features
+2025-11-13 09:38:20,667 - prediction_market - INFO -   P: 13 features
+2025-11-13 09:38:20,667 - prediction_market - INFO -   V: 13 features
+2025-11-13 09:38:20,667 - prediction_market - INFO -   S: 12 features
+2025-11-13 09:38:20,667 - prediction_market - INFO -   D: 9 features
+2025-11-13 09:38:20,671 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-13 09:38:20,671 - prediction_market - INFO - Completed: Loading data - Time: 0.09s
+2025-11-13 09:50:38,528 - prediction_market - INFO - Starting: Loading data
+2025-11-13 09:50:38,529 - prediction_market - INFO - Loading train data from data/raw/train.csv
+2025-11-13 09:50:38,625 - prediction_market - INFO - Loading test data from data/raw/test.csv
+2025-11-13 09:50:38,628 - prediction_market - INFO - Feature groups identified:
+2025-11-13 09:50:38,628 - prediction_market - INFO -   M: 18 features
+2025-11-13 09:50:38,628 - prediction_market - INFO -   E: 20 features
+2025-11-13 09:50:38,629 - prediction_market - INFO -   I: 9 features
+2025-11-13 09:50:38,629 - prediction_market - INFO -   P: 13 features
+2025-11-13 09:50:38,629 - prediction_market - INFO -   V: 13 features
+2025-11-13 09:50:38,630 - prediction_market - INFO -   S: 12 features
+2025-11-13 09:50:38,630 - prediction_market - INFO -   D: 9 features
+2025-11-13 09:50:38,635 - prediction_market - INFO - Data loaded and sorted by date_id
+2025-11-13 09:50:38,635 - prediction_market - INFO - Completed: Loading data - Time: 0.11s
+2025-11-13 09:52:05,135 - prediction_market - INFO - Starting pattern-based imputation...
+2025-11-13 09:52:05,504 - prediction_market - INFO - Pattern-based imputation complete
+2025-11-13 09:52:05,507 - prediction_market - INFO - Remaining missing values: 0
+2025-11-13 09:52:05,528 - prediction_market - INFO - Missing values handled (smart_fill: group-specific strategies)
+2025-11-13 09:52:05,531 - prediction_market - INFO - Remaining missing values: 0
+2025-11-13 09:52:05,546 - prediction_market - INFO - Missing values handled (backfill: simple backfill + median)
+2025-11-13 09:52:05,548 - prediction_market - INFO - Remaining missing values: 0
