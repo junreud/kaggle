@@ -21,7 +21,7 @@ plotly>=5.14.0
 
 # Time Series & Financial
 statsmodels>=0.14.0
-# arch>=6.2.0  # For GARCH models
+arch>=8.0.0
 
 # Experiment Tracking
 # mlflow>=2.7.0

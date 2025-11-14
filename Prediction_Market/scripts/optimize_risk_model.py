@@ -227,7 +227,7 @@ class RiskModelOptimizer:
             logger.info("\n3.1 Calculating future volatility...")
             df_labeled = self.risk_labeler.fit_transform(
                 df,
-                target_col='forward_returns'
+                target_col='forward_returns' # 얘측할 타겟이 아닌 risk_label을 만들때 사용할 원본 데이터
             )
             
             # Check risk labels
@@ -294,7 +294,7 @@ class RiskModelOptimizer:
                 top_n=top_n
             )
             
-            # Remove correlated features
+            # Remove correlated features 상관계수가 높은 특징 제거
             if remove_correlated:
                 logger.info(f"\n4.2 Removing correlated features (threshold={corr_threshold})...")
                 df_selected, removed_features = self.feature_engineer.remove_correlated_features(

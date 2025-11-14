@@ -78,21 +78,21 @@ class RiskLabeler:
             raise ValueError(f"Target column '{target_col}' not found in DataFrame")
         
         with Timer("Risk label creation"):
-            # Calculate future rolling volatility
-            # Use reverse order to get future values
+            # 핵심 계산: 미래 rolling volatility
+            # 역순으로 계산하여 "미래" 값을 얻음
             risk_labels = (
-                df[target_col][::-1]
-                .rolling(window=self.window, min_periods=self.min_periods)
-                .std()
-                [::-1]
+                df[target_col][::-1]                                       # forward_returns를 역순으로
+                .rolling(window=self.window, min_periods=self.min_periods) # 미래 20일 window
+                .std()                                                     # 표준편차 (변동성)
+                [::-1]                                                     # 다시 정순으로
             )
             
-            # Clip extreme values using MAD
+            # Outlier 제거 (MAD 방식)
             median = risk_labels.median()
             mad = (risk_labels - median).abs().median()
             
             if mad > 0:
-                lower_bound = median - self.clip_threshold * mad
+                lower_bound = median - self.clip_threshold * mad  # clip_threshold=4.0 MAD
                 upper_bound = median + self.clip_threshold * mad
                 
                 n_clipped = ((risk_labels < lower_bound) | (risk_labels > upper_bound)).sum()

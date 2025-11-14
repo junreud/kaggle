@@ -392,13 +392,20 @@ class FeatureEngineering:
                 continue
             
             # Calculate percentiles
-            rolling_pct = df[col].rolling(window=60, min_periods=1).apply(
+            # Use min_periods=30 to ensure some reliability (at least 30 days of data)
+            # This prevents very unreliable regime detection in the first few days
+            rolling_pct = df[col].rolling(window=60, min_periods=30).apply(
                 lambda x: pd.Series(x).rank(pct=True).iloc[-1]
             )
             
             # High/Low volatility regime
-            df_new[f'{col}_high_vol'] = (rolling_pct > 0.75).astype(int)
-            df_new[f'{col}_low_vol'] = (rolling_pct < 0.25).astype(int)
+            df_new[f'{col}_high_vol'] = (rolling_pct > 0.75).astype(float)
+            df_new[f'{col}_low_vol'] = (rolling_pct < 0.25).astype(float)
+            
+            # Fill NaN with 0 (neutral regime for first 30 days)
+            # This ensures we have valid features even at the start of validation period
+            df_new[f'{col}_high_vol'] = df_new[f'{col}_high_vol'].fillna(0)
+            df_new[f'{col}_low_vol'] = df_new[f'{col}_low_vol'].fillna(0)
         
         logger.info(f"Created regime features for {len(volatility_cols)} columns")
         return df_new
