@@ -239,6 +239,8 @@ class QuantileBinningMapper(BasePositionMapper):
     
     Divides z-score (r_hat/sigma_hat) into quantile bins and assigns
     optimal allocation to each bin.
+    
+    IMPORTANT: Must call fit() on training data before using map_positions()!
     """
     
     def __init__(self, config_path: str = "conf/params.yaml"):
@@ -258,8 +260,42 @@ class QuantileBinningMapper(BasePositionMapper):
             logger.warning("Using default linear allocations")
             self.allocations = np.linspace(0.0, 2.0, self.n_bins)
         
+        # Bin edges (fitted on training data)
+        self.bin_edges = None
+        self.is_fitted = False
+        
         logger.info(f"Quantile Binning: {self.n_bins} bins")
         logger.info(f"Allocations: {self.allocations}")
+    
+    def fit(self, r_hat: np.ndarray, sigma_hat: np.ndarray) -> 'QuantileBinningMapper':
+        """
+        Fit bin edges on training data.
+        
+        Parameters
+        ----------
+        r_hat : np.ndarray
+            Training predicted returns
+        sigma_hat : np.ndarray
+            Training predicted volatility
+            
+        Returns
+        -------
+        self : QuantileBinningMapper
+            Fitted mapper
+        """
+        # Calculate z-score
+        eps = 1e-6
+        z = r_hat / (sigma_hat + eps)
+        
+        # Calculate quantile bins from training data
+        quantiles = np.linspace(0, 1, self.n_bins + 1)
+        self.bin_edges = np.quantile(z, quantiles)
+        
+        self.is_fitted = True
+        logger.info(f"Fitted bin edges: {self.bin_edges}")
+        logger.info(f"Z-score range: [{z.min():.4f}, {z.max():.4f}]")
+        
+        return self
     
     def map_positions(
         self,
@@ -285,6 +321,12 @@ class QuantileBinningMapper(BasePositionMapper):
         np.ndarray
             Position allocations
         """
+        # Check if fitted
+        if not self.is_fitted:
+            logger.warning("QuantileBinningMapper not fitted! Using simple mean-based binning.")
+            # Fallback: fit on current data (not recommended for production)
+            self.fit(r_hat, sigma_hat)
+        
         # Use provided allocations or default from config
         allocations = allocations if allocations is not None else self.allocations
         
@@ -292,19 +334,15 @@ class QuantileBinningMapper(BasePositionMapper):
         eps = 1e-6
         z = r_hat / (sigma_hat + eps)
         
-        # Calculate quantile bins
-        quantiles = np.linspace(0, 1, self.n_bins + 1)
-        bin_edges = np.quantile(z, quantiles)
-        
-        # Assign positions based on bins
+        # Assign positions based on pre-fitted bins
         positions = np.zeros_like(z)
         for i in range(self.n_bins):
             if i == 0:
-                mask = z <= bin_edges[i + 1]
+                mask = z <= self.bin_edges[i + 1]
             elif i == self.n_bins - 1:
-                mask = z > bin_edges[i]
+                mask = z > self.bin_edges[i]
             else:
-                mask = (z > bin_edges[i]) & (z <= bin_edges[i + 1])
+                mask = (z > self.bin_edges[i]) & (z <= self.bin_edges[i + 1])
             
             positions[mask] = allocations[i]
         

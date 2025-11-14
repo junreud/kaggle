@@ -18,6 +18,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 from .utils import get_logger, load_config, Timer
 from .cv import PurgedWalkForwardCV
+from .models import ReturnPredictor
 
 logger = get_logger(__name__)
 
@@ -134,52 +135,41 @@ class RiskForecaster:
     """
     Risk forecasting model for predicting future volatility.
     
-    Uses LightGBM to predict future volatility based on current features.
+    Uses ReturnPredictor infrastructure for LightGBM training.
     """
     
     def __init__(
         self,
         model_params: Optional[Dict] = None,
-        cv_strategy: Optional[PurgedWalkForwardCV] = None,
         config_path: str = "conf/params.yaml"
     ):
         """
         Initialize risk forecaster.
         
         Args:
-            model_params: LightGBM parameters
-            cv_strategy: Cross-validation strategy
+            model_params: LightGBM parameters (optional override)
             config_path: Path to configuration file
         """
         # Load config
         config = load_config(config_path)
         risk_config = config.get('risk', {})
-        lgb_config = risk_config.get('lightgbm', {})
         
-        # Initialize model parameters
-        if model_params is None:
-            model_params = lgb_config.get('fixed_params', {
-                'objective': 'regression',
-                'metric': 'rmse',
-                'verbosity': -1,
-                'random_state': 42
-            })
+        # Initialize ReturnPredictor for LightGBM infrastructure
+        self.predictor = ReturnPredictor(model_type='lightgbm', config_path=config_path)
         
-        self.model_params = model_params
-        self.models = []
-        self.feature_names = None
-        self.cv_strategy = cv_strategy
+        # Override params if provided
+        if model_params is not None:
+            self.predictor.params.update(model_params)
         
-        logger.info("RiskForecaster initialized")
-        logger.info(f"Model parameters: {self.model_params}")
+        logger.info("RiskForecaster initialized using ReturnPredictor")
+        logger.info(f"Model parameters: {self.predictor.params}")
     
     def train(
         self,
         df: pd.DataFrame,
         feature_cols: List[str],
         risk_col: str = 'risk_label',
-        n_folds: int = 5,
-        early_stopping_rounds: int = 50
+        n_folds: int = 5
     ) -> Tuple[np.ndarray, List]:
         """
         Train risk models with cross-validation.
@@ -189,7 +179,6 @@ class RiskForecaster:
             feature_cols: List of feature column names
             risk_col: Name of risk label column
             n_folds: Number of CV folds
-            early_stopping_rounds: Early stopping rounds
             
         Returns:
             Tuple of (OOF predictions, trained models)
@@ -209,109 +198,45 @@ class RiskForecaster:
         if missing_features:
             raise ValueError(f"Missing features: {missing_features}")
         
-        # Initialize CV if not provided
-        if self.cv_strategy is None:
-            self.cv_strategy = PurgedWalkForwardCV(
-                n_splits=n_folds,
-                embargo=5,
-                purge=True,
-                train_ratio=0.8
-            )
-        
-        self.feature_names = feature_cols
-        
         logger.info(f"\nDataset:")
         logger.info(f"  Features: {len(feature_cols)}")
         logger.info(f"  Samples: {len(df)}")
         logger.info(f"  Risk column: {risk_col}")
         
-        # Prepare data
-        X = df[feature_cols].values
-        y = df[risk_col].values
+        # Prepare data (copy to avoid modifying original)
+        df_train = df.copy()
+        df_train['target'] = df_train[risk_col]  # Rename for compatibility
         
-        # Remove samples with missing risk labels
-        valid_idx = ~np.isnan(y)
-        X_valid = X[valid_idx]
-        y_valid = y[valid_idx]
-        df_valid = df[valid_idx].reset_index(drop=True)
-        
-        logger.info(f"  Valid samples: {len(y_valid)} ({len(y_valid)/len(y)*100:.1f}%)")
-        
-        # Initialize OOF predictions
-        oof_predictions = np.full(len(df_valid), np.nan)
-        
-        # Cross-validation training
+        # Use ReturnPredictor's train_cv method
         with Timer("Cross-validation training"):
-            fold_scores = []
-            
-            for fold_idx, (train_idx, val_idx) in enumerate(
-                self.cv_strategy.split(df_valid)
-            ):
-                logger.info(f"\nFold {fold_idx + 1}/{self.cv_strategy.n_splits}")
-                
-                # Prepare fold data
-                X_train, X_val = X_valid[train_idx], X_valid[val_idx]
-                y_train, y_val = y_valid[train_idx], y_valid[val_idx]
-                
-                logger.info(f"  Train: {len(X_train)}, Val: {len(X_val)}")
-                
-                # Create LightGBM datasets
-                train_data = lgb.Dataset(X_train, label=y_train)
-                val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)
-                
-                # Train model
-                model = lgb.train(
-                    self.model_params,
-                    train_data,
-                    valid_sets=[val_data],
-                    valid_names=['valid_0'],
-                    callbacks=[
-                        lgb.early_stopping(stopping_rounds=early_stopping_rounds, verbose=False),
-                        lgb.log_evaluation(period=0)
-                    ]
-                )
-                
-                # Predict on validation set
-                y_pred = model.predict(X_val)
-                oof_predictions[val_idx] = y_pred
-                
-                # Calculate metrics
-                rmse = np.sqrt(mean_squared_error(y_val, y_pred))
-                mae = mean_absolute_error(y_val, y_pred)
-                
-                logger.info(f"  RMSE: {rmse:.6f}")
-                logger.info(f"  MAE: {mae:.6f}")
-                
-                fold_scores.append(rmse)
-                self.models.append(model)
-            
-            # Calculate overall OOF score
-            valid_oof_idx = ~np.isnan(oof_predictions)
-            oof_rmse = np.sqrt(mean_squared_error(
-                y_valid[valid_oof_idx], 
-                oof_predictions[valid_oof_idx]
-            ))
-            oof_mae = mean_absolute_error(
-                y_valid[valid_oof_idx],
-                oof_predictions[valid_oof_idx]
+            results = self.predictor.train_cv(
+                df=df_train,
+                target_col='target',
+                date_col='date_id'
             )
-            
-            logger.info(f"\n{'='*80}")
-            logger.info("Cross-Validation Results")
-            logger.info(f"{'='*80}")
-            logger.info(f"\nFold RMSE scores: {[f'{s:.6f}' for s in fold_scores]}")
-            logger.info(f"Mean fold RMSE: {np.mean(fold_scores):.6f} (±{np.std(fold_scores):.6f})")
-            logger.info(f"\nOOF RMSE: {oof_rmse:.6f}")
-            logger.info(f"OOF MAE: {oof_mae:.6f}")
-            logger.info(f"OOF Coverage: {valid_oof_idx.sum()}/{len(oof_predictions)} ({valid_oof_idx.sum()/len(oof_predictions)*100:.1f}%)")
+        
+        oof_predictions = results['oof_predictions']
+        
+        # Log results
+        logger.info(f"\n{'='*80}")
+        logger.info("Cross-Validation Results")
+        logger.info(f"{'='*80}")
+        
+        # Filter out NaN from both predictions AND targets
+        valid_idx = ~np.isnan(oof_predictions) & ~np.isnan(df_train['target'].values)
+        y_true = df_train['target'].values[valid_idx]
+        y_pred = oof_predictions[valid_idx]
+        
+        oof_rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        oof_mae = mean_absolute_error(y_true, y_pred)
+        
+        logger.info(f"\nOOF RMSE: {oof_rmse:.6f}")
+        logger.info(f"OOF MAE: {oof_mae:.6f}")
+        logger.info(f"OOF Coverage: {valid_idx.sum()}/{len(oof_predictions)} ({valid_idx.sum()/len(oof_predictions)*100:.1f}%)")
         
         logger.info("\n✓ Risk forecaster training complete")
         
-        # Map OOF predictions back to original dataframe indices
-        oof_full = np.full(len(df), np.nan)
-        oof_full[valid_idx] = oof_predictions
-        
-        return oof_full, self.models
+        return oof_predictions, self.predictor.models
     
     def predict(self, X: Union[pd.DataFrame, np.ndarray]) -> np.ndarray:
         """
@@ -323,19 +248,7 @@ class RiskForecaster:
         Returns:
             Array of risk predictions (mean of all models)
         """
-        if len(self.models) == 0:
-            raise ValueError("No models trained. Call train() first.")
-        
-        if isinstance(X, pd.DataFrame):
-            if self.feature_names is not None:
-                X = X[self.feature_names].values
-            else:
-                X = X.values
-        
-        # Average predictions from all models
-        predictions = np.mean([model.predict(X) for model in self.models], axis=0)
-        
-        return predictions
+        return self.predictor.predict(X)
     
     def save_models(self, output_dir: str = "artifacts/models"):
         """
@@ -344,17 +257,8 @@ class RiskForecaster:
         Args:
             output_dir: Directory to save models
         """
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
-        for idx, model in enumerate(self.models):
-            # Use same naming pattern as ReturnPredictor: lightgbm_fold_{idx}.pkl
-            model_path = output_path / f"lightgbm_fold_{idx}.pkl"
-            with open(model_path, 'wb') as f:
-                pickle.dump(model, f)
-            logger.info(f"Model {idx} saved to {model_path}")
-        
-        logger.info(f"\n✓ All {len(self.models)} models saved to {output_dir}")
+        self.predictor.save_models(output_dir)
+        logger.info(f"\n✓ All risk models saved to {output_dir}")
     
     def load_models(self, model_dir: str = "artifacts/models", n_models: Optional[int] = None):
         """
@@ -364,21 +268,8 @@ class RiskForecaster:
             model_dir: Directory containing saved models
             n_models: Number of models to load (None = all available)
         """
-        model_path = Path(model_dir)
-        
-        # Use same naming pattern as ReturnPredictor
-        model_files = sorted(model_path.glob("lightgbm_fold_*.pkl"))
-        
-        if n_models is not None:
-            model_files = model_files[:n_models]
-        
-        self.models = []
-        for model_file in model_files:
-            with open(model_file, 'rb') as f:
-                self.models.append(pickle.load(f))
-            logger.info(f"Loaded model from {model_file}")
-        
-        logger.info(f"\n✓ Loaded {len(self.models)} models from {model_dir}")
+        self.predictor.load_models(model_dir, n_models)
+        logger.info(f"\n✓ Loaded risk models from {model_dir}")
     
     def get_feature_importance(self, importance_type: str = 'gain') -> pd.DataFrame:
         """
@@ -390,36 +281,7 @@ class RiskForecaster:
         Returns:
             DataFrame with feature importance
         """
-        if len(self.models) == 0:
-            raise ValueError("No models trained. Call train() first.")
-        
-        if self.feature_names is None:
-            raise ValueError("Feature names not available")
-        
-        # Collect importance from all models
-        importance_list = []
-        
-        for model in self.models:
-            try:
-                importance = model.feature_importance(importance_type=importance_type)
-            except AttributeError:
-                importance = model.feature_importances_
-            
-            importance_list.append(importance)
-        
-        # Calculate mean and std
-        importance_array = np.array(importance_list)
-        mean_importance = importance_array.mean(axis=0)
-        std_importance = importance_array.std(axis=0)
-        
-        # Create DataFrame
-        importance_df = pd.DataFrame({
-            'feature': self.feature_names,
-            'importance': mean_importance,
-            'std': std_importance
-        }).sort_values('importance', ascending=False).reset_index(drop=True)
-        
-        return importance_df
+        return self.predictor.get_feature_importance(importance_type)
 
 
 class RiskCalibrator:

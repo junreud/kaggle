@@ -19,7 +19,7 @@ fi
 
 # Create ZIP file
 echo "Creating ZIP file..."
-zip -r "$OUTPUT_FILE" src/ conf/ \
+zip -r "$OUTPUT_FILE" ../src/ ../conf/ \
     -x "*__pycache__*" \
     -x "*.pyc" \
     -x "*.pyo" \

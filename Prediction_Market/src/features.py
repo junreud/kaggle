@@ -624,6 +624,323 @@ class FeatureEngineering:
         
         return df_selected, selected_features
     
+    def select_features_voting(
+        self,
+        df: pd.DataFrame,
+        target_col: str = 'forward_returns',
+        methods: Optional[List[str]] = None,
+        top_n_per_method: int = 150,
+        min_votes: int = 2,
+        final_top_n: Optional[int] = None
+    ) -> Tuple[pd.DataFrame, List[str], pd.DataFrame]:
+        """
+        Select features using voting across multiple methods.
+        
+        각 방법에서 상위 N개 feature를 선택하고, 최소 min_votes 이상의
+        방법에서 선택된 feature만 최종 선택합니다.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe with features
+        target_col : str
+            Target column name
+        methods : List[str], optional
+            Methods to use: ['correlation', 'variance', 'mutual_info']
+            Default: all three methods
+        top_n_per_method : int
+            Top N features to select per method (default: 150)
+        min_votes : int
+            Minimum votes required (default: 2)
+        final_top_n : int, optional
+            Final number of features to select (default: all with min_votes)
+            
+        Returns
+        -------
+        Tuple[pd.DataFrame, List[str], pd.DataFrame]
+            (Filtered dataframe, Selected feature names, Voting summary)
+        """
+        logger.info("="*80)
+        logger.info("Feature Selection - Voting Method")
+        logger.info("="*80)
+        
+        if methods is None:
+            methods = ['correlation', 'variance', 'mutual_info']
+        
+        logger.info(f"Methods: {methods}")
+        logger.info(f"Top N per method: {top_n_per_method}")
+        logger.info(f"Min votes required: {min_votes}")
+        
+        # Get feature columns
+        feature_cols = [
+            col for col in df.columns 
+            if col not in ['date_id', target_col, 'risk_free_rate', 
+                          'market_forward_excess_returns']
+        ]
+        
+        logger.info(f"\nTotal features to evaluate: {len(feature_cols)}")
+        
+        # Store selected features from each method
+        method_selections = {}
+        
+        for method in methods:
+            logger.info(f"\nRunning method: {method}...")
+            
+            # Calculate scores
+            if method == 'correlation':
+                scores = df[feature_cols + [target_col]].corr()[target_col].abs()
+                scores = scores[scores.index != target_col].sort_values(ascending=False)
+            
+            elif method == 'variance':
+                variances = df[feature_cols].var()
+                scores = variances.sort_values(ascending=False)
+            
+            elif method == 'mutual_info':
+                from sklearn.feature_selection import mutual_info_regression
+                
+                df_clean = df[feature_cols + [target_col]].dropna()
+                
+                if len(df_clean) < 100:
+                    logger.warning(f"Too few samples for {method}, skipping")
+                    continue
+                
+                mi_scores = mutual_info_regression(
+                    df_clean[feature_cols], 
+                    df_clean[target_col],
+                    random_state=42
+                )
+                scores = pd.Series(mi_scores, index=feature_cols).sort_values(ascending=False)
+            
+            # Select top N
+            selected = scores.head(top_n_per_method).index.tolist()
+            method_selections[method] = set(selected)
+            
+            logger.info(f"  Selected {len(selected)} features")
+        
+        # Count votes for each feature
+        from collections import Counter
+        
+        all_features = []
+        for features in method_selections.values():
+            all_features.extend(features)
+        
+        vote_counts = Counter(all_features)
+        
+        # Create voting summary
+        voting_summary = pd.DataFrame([
+            {'feature': feat, 'votes': count}
+            for feat, count in vote_counts.items()
+        ]).sort_values('votes', ascending=False)
+        
+        # Add which methods voted for each feature
+        voting_summary['methods'] = voting_summary['feature'].apply(
+            lambda f: ', '.join([m for m, feats in method_selections.items() if f in feats])
+        )
+        
+        logger.info(f"\nVoting Summary:")
+        logger.info(f"  Features with 3 votes: {sum(voting_summary['votes'] == 3)}")
+        logger.info(f"  Features with 2 votes: {sum(voting_summary['votes'] == 2)}")
+        logger.info(f"  Features with 1 vote: {sum(voting_summary['votes'] == 1)}")
+        
+        # Select features with minimum votes
+        selected_features = voting_summary[
+            voting_summary['votes'] >= min_votes
+        ]['feature'].tolist()
+        
+        # If final_top_n specified, take top N
+        if final_top_n is not None and len(selected_features) > final_top_n:
+            selected_features = voting_summary.head(final_top_n)['feature'].tolist()
+            logger.info(f"\n✓ Selected top {final_top_n} features from voting")
+        else:
+            logger.info(f"\n✓ Selected {len(selected_features)} features with {min_votes}+ votes")
+        
+        # Log top features
+        logger.info(f"\nTop 20 features by votes:")
+        for _, row in voting_summary.head(20).iterrows():
+            logger.info(f"  {row['feature']}: {int(row['votes'])} votes ({row['methods']})")
+        
+        # Keep date, target, and selected features
+        keep_cols = ['date_id', target_col] + selected_features
+        if 'risk_free_rate' in df.columns:
+            keep_cols.insert(2, 'risk_free_rate')
+        if 'market_forward_excess_returns' in df.columns:
+            keep_cols.insert(2, 'market_forward_excess_returns')
+        
+        df_selected = df[keep_cols].copy()
+        
+        logger.info(f"\n✓ Voting-based selection complete")
+        logger.info(f"  Selected features: {len(selected_features)}")
+        logger.info(f"  Dataframe shape: {df_selected.shape}")
+        
+        return df_selected, selected_features, voting_summary
+    
+    def select_features_weighted_ensemble(
+        self,
+        df: pd.DataFrame,
+        target_col: str = 'forward_returns',
+        weights: Optional[Dict[str, float]] = None,
+        top_n: int = 100
+    ) -> Tuple[pd.DataFrame, List[str], pd.DataFrame]:
+        """
+        Select features using weighted ensemble of multiple methods.
+        
+        각 방법의 중요도 점수를 정규화한 후 가중치를 적용하여 합산하고,
+        최종 점수가 높은 상위 N개 feature를 선택합니다.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input dataframe with features
+        target_col : str
+            Target column name
+        weights : Dict[str, float], optional
+            Weights for each method
+            Default: {'correlation': 0.3, 'mutual_info': 0.5, 'variance': 0.2}
+            (금융 데이터는 비선형 관계가 많아 mutual_info 가중치 높임)
+        top_n : int
+            Number of features to select (default: 100)
+            
+        Returns
+        -------
+        Tuple[pd.DataFrame, List[str], pd.DataFrame]
+            (Filtered dataframe, Selected feature names, Score summary)
+        """
+        logger.info("="*80)
+        logger.info("Feature Selection - Weighted Ensemble Method")
+        logger.info("="*80)
+        
+        if weights is None:
+            weights = {
+                'correlation': 0.3,
+                'mutual_info': 0.5,  # 금융 데이터는 비선형 관계 많음
+                'variance': 0.2
+            }
+        
+        # Normalize weights
+        total_weight = sum(weights.values())
+        weights = {k: v / total_weight for k, v in weights.items()}
+        
+        logger.info(f"Normalized weights:")
+        for method, weight in weights.items():
+            logger.info(f"  {method}: {weight:.3f}")
+        logger.info(f"Top N: {top_n}")
+        
+        # Get feature columns
+        feature_cols = [
+            col for col in df.columns 
+            if col not in ['date_id', target_col, 'risk_free_rate', 
+                          'market_forward_excess_returns']
+        ]
+        
+        logger.info(f"\nTotal features to evaluate: {len(feature_cols)}")
+        
+        # Store normalized scores from each method
+        method_scores = {}
+        
+        for method, weight in weights.items():
+            logger.info(f"\nCalculating {method} scores...")
+            
+            # Calculate raw scores
+            if method == 'correlation':
+                scores = df[feature_cols + [target_col]].corr()[target_col].abs()
+                scores = scores[scores.index != target_col]
+            
+            elif method == 'variance':
+                scores = df[feature_cols].var()
+            
+            elif method == 'mutual_info':
+                from sklearn.feature_selection import mutual_info_regression
+                
+                df_clean = df[feature_cols + [target_col]].dropna()
+                
+                if len(df_clean) < 100:
+                    logger.warning(f"Too few samples for {method}, skipping")
+                    continue
+                
+                mi_scores = mutual_info_regression(
+                    df_clean[feature_cols], 
+                    df_clean[target_col],
+                    random_state=42
+                )
+                scores = pd.Series(mi_scores, index=feature_cols)
+            
+            else:
+                logger.warning(f"Unknown method: {method}, skipping")
+                continue
+            
+            # Normalize scores to [0, 1]
+            # Min-Max normalization
+            scores_min = scores.min()
+            scores_max = scores.max()
+            
+            if scores_max > scores_min:
+                normalized = (scores - scores_min) / (scores_max - scores_min)
+            else:
+                normalized = pd.Series(0, index=scores.index)
+            
+            method_scores[method] = normalized
+            
+            logger.info(f"  Score range: [{scores.min():.4f}, {scores.max():.4f}]")
+            logger.info(f"  Normalized range: [{normalized.min():.4f}, {normalized.max():.4f}]")
+        
+        # Combine scores with weights
+        logger.info(f"\nCombining scores with weights...")
+        
+        combined_scores = pd.Series(0.0, index=feature_cols)
+        
+        for method, normalized_scores in method_scores.items():
+            weight = weights[method]
+            combined_scores += weight * normalized_scores
+        
+        # Sort by combined score
+        combined_scores = combined_scores.sort_values(ascending=False)
+        
+        # Select top N
+        selected_features = combined_scores.head(top_n).index.tolist()
+        
+        # Create score summary
+        score_summary = pd.DataFrame({
+            'feature': combined_scores.index,
+            'combined_score': combined_scores.values
+        })
+        
+        # Add individual method scores
+        for method, scores in method_scores.items():
+            score_summary[f'{method}_score'] = score_summary['feature'].map(scores)
+        
+        score_summary = score_summary.sort_values('combined_score', ascending=False)
+        
+        logger.info(f"\n✓ Selected top {top_n} features by weighted ensemble")
+        
+        # Log top features
+        logger.info(f"\nTop 20 features by combined score:")
+        for _, row in score_summary.head(20).iterrows():
+            feat = row['feature']
+            score = row['combined_score']
+            logger.info(f"  {feat}: {score:.4f}")
+            
+            # Show contribution from each method
+            for method in method_scores.keys():
+                method_score = row.get(f'{method}_score', 0)
+                weight = weights[method]
+                contribution = method_score * weight
+                logger.info(f"    └─ {method}: {method_score:.4f} × {weight:.3f} = {contribution:.4f}")
+        
+        # Keep date, target, and selected features
+        keep_cols = ['date_id', target_col] + selected_features
+        if 'risk_free_rate' in df.columns:
+            keep_cols.insert(2, 'risk_free_rate')
+        if 'market_forward_excess_returns' in df.columns:
+            keep_cols.insert(2, 'market_forward_excess_returns')
+        
+        df_selected = df[keep_cols].copy()
+        
+        logger.info(f"\n✓ Weighted ensemble selection complete")
+        logger.info(f"  Selected features: {len(selected_features)}")
+        logger.info(f"  Dataframe shape: {df_selected.shape}")
+        
+        return df_selected, selected_features, score_summary
+    
     def remove_correlated_features(
         self,
         df: pd.DataFrame,
