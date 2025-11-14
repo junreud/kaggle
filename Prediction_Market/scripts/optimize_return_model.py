@@ -423,6 +423,12 @@ class ReturnModelOptimizer:
             # Save models
             predictor.save_models(output_dir="artifacts/models_optimized")
             
+            # Save OOF predictions for position optimization
+            oof_pred_path = Path("artifacts/oof_return_predictions.npy")
+            oof_pred_path.parent.mkdir(parents=True, exist_ok=True)
+            np.save(oof_pred_path, oof_preds)
+            logger.info(f"\n✓ OOF predictions saved to {oof_pred_path}")
+            
             return predictor, oof_preds, oof_score
     
     def step6_model_interpretation(
@@ -686,10 +692,10 @@ def main():
         remove_correlated=True,
         corr_threshold=0.95,
         # Hyperparameter Tuning
-        n_trials=50,  # Increase for better results
+        n_trials=1,  # Increase for better results
         timeout=None,  # Or set time limit in seconds
         # Interpretation
-        calculate_shap=False  # Set True for SHAP analysis (slow)
+        calculate_shap=True  # Set True for SHAP analysis (slow)
     )
     
     logger.info("\n✓ Optimization complete! Check results/ and artifacts/ directories.")

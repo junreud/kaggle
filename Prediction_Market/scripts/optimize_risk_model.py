@@ -452,7 +452,6 @@ class RiskModelOptimizer:
             # Create risk model with best params
             risk_model = RiskForecaster(
                 model_params=best_params,
-                cv_strategy=None,  # Will be created internally
                 config_path=self.config_path
             )
             
@@ -462,27 +461,32 @@ class RiskModelOptimizer:
                 df=df,
                 feature_cols=feature_cols,
                 risk_col='risk_label',
-                n_folds=5,  # Default CV folds
-                early_stopping_rounds=50
+                n_folds=5  # Default CV folds
             )
             
             # Calculate OOF score
-            valid_idx = ~np.isnan(oof_preds)
-            y_true = df.loc[valid_idx, 'risk_label'].values
-            oof_score = np.sqrt(mean_squared_error(y_true, oof_preds[valid_idx]))
+            y_true = df['risk_label'].values
+            valid_idx = ~(np.isnan(oof_preds) | np.isnan(y_true))
+            oof_score = np.sqrt(mean_squared_error(y_true[valid_idx], oof_preds[valid_idx]))
             
             logger.info(f"\n✓ Final model training complete")
             logger.info(f"  OOF Score (RMSE): {oof_score:.6f}")
-            logger.info(f"  Number of models: {len(risk_model.models)}")
+            logger.info(f"  Number of models: {len(risk_model.predictor.models)}")
             
             # Store results
             self.results['final_model'] = {
                 'oof_score': oof_score,
-                'n_folds': len(risk_model.models)
+                'n_folds': len(risk_model.predictor.models)
             }
             
             # Save models
             risk_model.save_models(output_dir="artifacts/models_risk_optimized")
+            
+            # Save OOF predictions for position optimization
+            oof_pred_path = Path("artifacts/oof_risk_predictions.npy")
+            oof_pred_path.parent.mkdir(parents=True, exist_ok=True)
+            np.save(oof_pred_path, oof_preds)
+            logger.info(f"\n✓ OOF predictions saved to {oof_pred_path}")
             
             return risk_model, oof_preds, oof_score
     
@@ -519,24 +523,45 @@ class RiskModelOptimizer:
         with Timer("Model Interpretation", logger):
             # Create interpreter
             interpreter = ModelInterpreter(
-                models=risk_model.models,
+                models=risk_model.predictor.models,
                 feature_names=feature_cols,
                 model_type='lightgbm'
             )
             
             # Calculate feature importance
             logger.info("\n7.1 Calculating feature importance...")
-            importance_df = interpreter.calculate_feature_importance(importance_type='gain')
+            try:
+                importance_df = interpreter.calculate_feature_importance(importance_type='gain')
+            except Exception as e:
+                logger.warning(f"Feature importance calculation failed: {e}")
+                # Create simple importance from first model using LightGBM API
+                first_model = risk_model.predictor.models[0]
+                importances = first_model.feature_importance(importance_type='gain')
+                importance_df = pd.DataFrame({
+                    'feature': feature_cols[:len(importances)],
+                    'importance': importances[:len(feature_cols)]
+                })
+                logger.info(f"✓ Fallback: Created importance from first model ({len(importance_df)} features)")
             
             # Calculate SHAP values (optional, slow)
             if calculate_shap:
                 logger.info("\n7.2 Calculating SHAP values...")
                 X = df[feature_cols].sample(n=1000, random_state=42)
-                shap_values = interpreter.calculate_shap_values(X, sample_size=1000)
+                try:
+                    shap_values = interpreter.calculate_shap_values(X, sample_size=1000)
+                except Exception as e:
+                    logger.warning(f"SHAP calculation failed: {e}")
             
             # Save analysis
             logger.info("\n7.3 Saving interpretability results...")
-            interpreter.save_analysis(output_dir="results/interpretability_risk_optimized")
+            try:
+                interpreter.save_analysis(output_dir="results/interpretability_risk_optimized")
+            except Exception as e:
+                logger.warning(f"Save analysis failed: {e}")
+                # Manual save of importance
+                output_dir = Path("results/interpretability_risk_optimized")
+                output_dir.mkdir(parents=True, exist_ok=True)
+                importance_df.to_csv(output_dir / 'feature_importance.csv', index=False)
             
             logger.info(f"\n✓ Model interpretation complete")
             

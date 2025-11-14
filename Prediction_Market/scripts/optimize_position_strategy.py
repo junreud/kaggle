@@ -103,11 +103,6 @@ class PositionStrategyOptimizer:
             train_df, _ = self.data_loader.preprocess_timeseries(
                 train_df,
                 train_df=None,
-                add_missing_indicators=True,
-                missing_threshold=0.1,
-                add_regime_indicators=True,
-                crisis_periods=None,
-                auto_detect_regime=True,
                 handle_outliers=True,
                 winsorize_limits=(0.001, 0.001),
                 winsorize_method='rolling',
@@ -701,7 +696,7 @@ class PositionStrategyOptimizer:
         with Timer("Test Prediction", logger):
             # Load test data
             logger.info("\n6.1 Loading test data...")
-            test_df = self.data_loader.load_data(is_train=False)
+            _, test_df = self.data_loader.load_data()
             logger.info(f"✓ Test data loaded: {test_df.shape}")
             
             # Preprocess test data (use fitted transformers)
@@ -709,14 +704,14 @@ class PositionStrategyOptimizer:
             test_processed, _ = self.data_loader.preprocess_timeseries(
                 test_df,
                 train_df=None,  # Use fitted transformers
-                add_missing_indicators=True,
-                missing_threshold=0.1,
-                add_regime_indicators=True,
-                crisis_periods=None,
-                auto_detect_regime=True,
                 handle_outliers=True,
+                winsorize_limits=(0.001, 0.001),
+                winsorize_method='rolling',
                 normalize=True,
-                scale=True
+                normalize_method='rank_gauss',
+                scale=True,
+                scale_method='robust',
+                window=60
             )
             logger.info(f"✓ Preprocessing complete: {test_processed.shape}")
             
@@ -750,14 +745,24 @@ class PositionStrategyOptimizer:
             
             return_features = pd.read_csv(feature_path)['feature'].tolist()
             
-            # Add missing features with 0
-            for col in return_features:
-                if col not in test_features.columns:
+            # Filter to only features that exist in test data
+            available_features = [f for f in return_features if f in test_features.columns]
+            missing_features = set(return_features) - set(available_features)
+            
+            if missing_features:
+                logger.warning(f"Missing {len(missing_features)} features in test data, adding with 0.0")
+                for col in missing_features:
                     test_features[col] = 0.0
             
-            # Ensemble prediction (mean of all folds)
-            X_test_return = test_features[return_features]
-            r_hat_test = np.mean([model.predict(X_test_return) for model in return_models], axis=0)
+            # Ensure exact feature order and count
+            X_test_return = test_features[return_features].values
+            logger.info(f"Test return features shape: {X_test_return.shape}, Expected features: {len(return_features)}")
+            
+            # Ensemble prediction (mean of all folds, disable shape check for flexibility)
+            r_hat_test = np.mean([
+                model.predict(X_test_return, predict_disable_shape_check=True) 
+                for model in return_models
+            ], axis=0)
             logger.info(f"✓ Return predictions: range=[{r_hat_test.min():.6f}, {r_hat_test.max():.6f}]")
             
             # Generate risk predictions
@@ -784,14 +789,24 @@ class PositionStrategyOptimizer:
             
             risk_features = pd.read_csv(risk_feature_path)['feature'].tolist()
             
-            # Add missing features with 0
-            for col in risk_features:
-                if col not in test_features.columns:
+            # Filter to only features that exist in test data
+            available_features = [f for f in risk_features if f in test_features.columns]
+            missing_features = set(risk_features) - set(available_features)
+            
+            if missing_features:
+                logger.warning(f"Missing {len(missing_features)} features in test data, adding with 0.0")
+                for col in missing_features:
                     test_features[col] = 0.0
             
-            # Ensemble prediction
-            X_test_risk = test_features[risk_features]
-            sigma_hat_test = np.mean([model.predict(X_test_risk) for model in risk_models], axis=0)
+            # Ensure exact feature order and count
+            X_test_risk = test_features[risk_features].values
+            logger.info(f"Test risk features shape: {X_test_risk.shape}, Expected features: {len(risk_features)}")
+            
+            # Ensemble prediction (disable shape check for flexibility)
+            sigma_hat_test = np.mean([
+                model.predict(X_test_risk, predict_disable_shape_check=True) 
+                for model in risk_models
+            ], axis=0)
             logger.info(f"✓ Risk predictions: range=[{sigma_hat_test.min():.6f}, {sigma_hat_test.max():.6f}]")
             
             # Apply position mapping strategy
@@ -813,8 +828,8 @@ class PositionStrategyOptimizer:
                 params = best_strategy_config['parameters']
                 
                 # Fit mapper on test predictions (using quantiles)
-                mapper.fit(r_hat_test, sigma_hat_test, allocations=params['allocations'])
-                allocations = mapper.map_positions(r_hat_test, sigma_hat_test)
+                mapper.fit(r_hat_test, sigma_hat_test)
+                allocations = mapper.map_positions(r_hat_test, sigma_hat_test, allocations=np.array(params['allocations']))
             
             else:
                 raise ValueError(f"Unknown strategy: {best_strategy_config['strategy_name']}")

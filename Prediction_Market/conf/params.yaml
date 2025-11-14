@@ -74,8 +74,8 @@ model_return:
     verbosity: -1
     early_stopping_rounds: 50
     # GPU settings (auto-configured based on environment)
-    device: "cpu"  # Will be overridden: 'gpu' (Kaggle), 'mps' (Mac), 'cpu' (fallback)
-    gpu_use_dp: false
+    device_type: "cpu"  # Will be overridden: 'gpu' (Kaggle), 'cpu' (fallback)
+    device: "cpu"  # Deprecated but kept for compatibility
   
   catboost:
     iterations: 1000
