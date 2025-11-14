@@ -19,12 +19,13 @@ fi
 
 # Create ZIP file
 echo "Creating ZIP file..."
-zip -r "$OUTPUT_FILE" ../src/ ../conf/ \
+zip -r "$OUTPUT_FILE" src/ scripts/ conf/ data/raw/ \
     -x "*__pycache__*" \
     -x "*.pyc" \
     -x "*.pyo" \
     -x "*/.DS_Store" \
     -x "src/__pycache__/*" \
+    -x "scripts/__pycache__/*" \
     -x "*.log"
 
 # Check if successful

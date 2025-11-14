@@ -80,8 +80,6 @@ class RiskModelOptimizer:
     
     def step1_load_and_preprocess_data(
         self,
-        add_missing_indicators: bool = True,
-        add_regime_indicators: bool = True,
         handle_outliers: bool = True,
         normalize: bool = True,
         scale: bool = True
@@ -91,10 +89,6 @@ class RiskModelOptimizer:
         
         Parameters
         ----------
-        add_missing_indicators : bool
-            Add missing value indicators
-        add_regime_indicators : bool
-            Add regime indicators (crisis periods)
         handle_outliers : bool
             Winsorize outliers
         normalize : bool
@@ -117,16 +111,11 @@ class RiskModelOptimizer:
             train_df, _ = self.data_loader.load_data()
             logger.info(f"✓ Loaded {len(train_df)} samples")
             
-            # Preprocess with competition best practices
+            # Preprocess (data cleaning only)
             logger.info("\n1.2 Preprocessing data...")
             train_processed, metadata = self.data_loader.preprocess_timeseries(
                 train_df,
                 train_df=None,  # First time, fit on itself
-                add_missing_indicators=add_missing_indicators,
-                missing_threshold=0.1,
-                add_regime_indicators=add_regime_indicators,
-                crisis_periods=None,  # Auto-detect
-                auto_detect_regime=True,
                 handle_outliers=handle_outliers,
                 winsorize_limits=(0.001, 0.001),  # 0.1% clipping
                 winsorize_method='rolling',
@@ -150,6 +139,8 @@ class RiskModelOptimizer:
     def step2_feature_engineering(
         self,
         df: pd.DataFrame,
+        add_time_features: bool = True,
+        add_regime_features: bool = True,
         create_rolling: bool = True,
         create_lag: bool = True,
         create_diff: bool = True,
@@ -163,6 +154,10 @@ class RiskModelOptimizer:
         ----------
         df : pd.DataFrame
             Preprocessed dataframe
+        add_time_features : bool
+            Add time period features
+        add_regime_features : bool
+            Add market regime features
         create_rolling : bool
             Create rolling features
         create_lag : bool
@@ -184,10 +179,29 @@ class RiskModelOptimizer:
         logger.info("="*80)
         
         with Timer("Feature Engineering", logger):
-            # Use fit_transform for full pipeline
-            df_engineered = self.feature_engineer.fit_transform(df)
+            df_engineered = df.copy()
             
-            logger.info(f"✓ Feature engineering complete")
+            # Add time period features
+            if add_time_features:
+                logger.info("\n2.1 Adding time period features...")
+                df_engineered = self.feature_engineer.create_time_period_features(df_engineered)
+                logger.info(f"✓ Time period features added")
+            
+            # Add market regime features
+            if add_regime_features:
+                logger.info("\n2.2 Adding market regime features...")
+                df_engineered = self.feature_engineer.create_market_regime_features(
+                    df_engineered,
+                    auto_detect=True,
+                    vol_threshold=2.0
+                )
+                logger.info(f"✓ Market regime features added")
+            
+            # Standard feature engineering
+            logger.info("\n2.3 Creating engineered features...")
+            df_engineered = self.feature_engineer.fit_transform(df_engineered)
+            
+            logger.info(f"\n✓ Feature engineering complete")
             logger.info(f"  Original features: {len(self.feature_engineer.original_features)}")
             logger.info(f"  Engineered features: {len(self.feature_engineer.engineered_features)}")
             logger.info(f"  Total features: {df_engineered.shape[1] - 2}")
@@ -196,7 +210,9 @@ class RiskModelOptimizer:
             self.results['feature_engineering'] = {
                 'original_features': len(self.feature_engineer.original_features),
                 'engineered_features': len(self.feature_engineer.engineered_features),
-                'total_features': df_engineered.shape[1] - 2
+                'total_features': df_engineered.shape[1] - 2,
+                'time_features_added': add_time_features,
+                'regime_features_added': add_regime_features
             }
             
             return df_engineered
@@ -627,11 +643,12 @@ class RiskModelOptimizer:
     def run_full_optimization(
         self,
         # Step 1: Preprocessing
-        add_missing_indicators: bool = True,
-        add_regime_indicators: bool = True,
         handle_outliers: bool = True,
         normalize: bool = True,
         scale: bool = True,
+        # Step 2: Feature Engineering
+        add_time_features: bool = True,
+        add_regime_features: bool = True,
         # Step 4: Feature Selection
         selection_method: str = 'correlation',
         top_n_features: int = 200,
@@ -661,15 +678,17 @@ class RiskModelOptimizer:
         
         # Step 1: Load and preprocess data
         train_df, metadata = self.step1_load_and_preprocess_data(
-            add_missing_indicators=add_missing_indicators,
-            add_regime_indicators=add_regime_indicators,
             handle_outliers=handle_outliers,
             normalize=normalize,
             scale=scale
         )
         
         # Step 2: Feature engineering
-        train_engineered = self.step2_feature_engineering(train_df)
+        train_engineered = self.step2_feature_engineering(
+            train_df,
+            add_time_features=add_time_features,
+            add_regime_features=add_regime_features
+        )
         
         # Step 3: Create risk labels
         train_labeled = self.step3_create_risk_labels(train_engineered)
@@ -724,12 +743,13 @@ def main():
     
     # Run full optimization
     results = optimizer.run_full_optimization(
-        # Preprocessing
-        add_missing_indicators=True,
-        add_regime_indicators=True,
+        # Preprocessing (data cleaning)
         handle_outliers=True,
         normalize=True,
         scale=True,
+        # Feature Engineering (new features)
+        add_time_features=True,
+        add_regime_features=True,
         # Feature Selection
         selection_method='correlation',  # or 'mutual_info'
         top_n_features=200,

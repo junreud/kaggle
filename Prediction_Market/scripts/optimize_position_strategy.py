@@ -671,12 +671,202 @@ class PositionStrategyOptimizer:
             
             return best_config
     
+    def step6_predict_test(
+        self,
+        return_model_dir: str,
+        risk_model_dir: str,
+        best_strategy_config: Dict
+    ) -> pd.DataFrame:
+        """
+        Step 6: Predict on test data and generate submission.
+        
+        Parameters
+        ----------
+        return_model_dir : str
+            Directory with saved return models
+        risk_model_dir : str
+            Directory with saved risk models
+        best_strategy_config : Dict
+            Best position strategy configuration
+            
+        Returns
+        -------
+        pd.DataFrame
+            Submission dataframe with date_id and allocation
+        """
+        logger.info("\n" + "="*80)
+        logger.info("STEP 6: TEST PREDICTION & SUBMISSION GENERATION")
+        logger.info("="*80)
+        
+        with Timer("Test Prediction", logger):
+            # Load test data
+            logger.info("\n6.1 Loading test data...")
+            test_df = self.data_loader.load_data(is_train=False)
+            logger.info(f"✓ Test data loaded: {test_df.shape}")
+            
+            # Preprocess test data (use fitted transformers)
+            logger.info("\n6.2 Preprocessing test data...")
+            test_processed, _ = self.data_loader.preprocess_timeseries(
+                test_df,
+                train_df=None,  # Use fitted transformers
+                add_missing_indicators=True,
+                missing_threshold=0.1,
+                add_regime_indicators=True,
+                crisis_periods=None,
+                auto_detect_regime=True,
+                handle_outliers=True,
+                normalize=True,
+                scale=True
+            )
+            logger.info(f"✓ Preprocessing complete: {test_processed.shape}")
+            
+            # Feature engineering (use transform, not fit_transform)
+            logger.info("\n6.3 Applying feature engineering...")
+            feature_engineer = FeatureEngineering(config_path=self.config_path)
+            test_features = feature_engineer.transform(test_processed)
+            logger.info(f"✓ Features created: {test_features.shape[1]} columns")
+            
+            # Generate return predictions
+            logger.info("\n6.4 Generating return predictions...")
+            return_predictor = ReturnPredictor(config_path=self.config_path)
+            
+            # Load return models
+            return_model_path = Path(return_model_dir)
+            return_model_files = sorted(return_model_path.glob("lightgbm_fold_*.pkl"))
+            
+            if not return_model_files:
+                raise FileNotFoundError(f"No return models found in {return_model_dir}")
+            
+            logger.info(f"Loading {len(return_model_files)} return models...")
+            return_models = []
+            for model_file in return_model_files:
+                with open(model_file, 'rb') as f:
+                    return_models.append(pickle.load(f))
+            
+            # Get return feature columns
+            feature_path = Path("results/feature_selection/selected_features_optimized.csv")
+            if not feature_path.exists():
+                raise FileNotFoundError(f"Feature list not found: {feature_path}")
+            
+            return_features = pd.read_csv(feature_path)['feature'].tolist()
+            
+            # Add missing features with 0
+            for col in return_features:
+                if col not in test_features.columns:
+                    test_features[col] = 0.0
+            
+            # Ensemble prediction (mean of all folds)
+            X_test_return = test_features[return_features]
+            r_hat_test = np.mean([model.predict(X_test_return) for model in return_models], axis=0)
+            logger.info(f"✓ Return predictions: range=[{r_hat_test.min():.6f}, {r_hat_test.max():.6f}]")
+            
+            # Generate risk predictions
+            logger.info("\n6.5 Generating risk predictions...")
+            risk_forecaster = RiskForecaster(config_path=self.config_path)
+            
+            # Load risk models
+            risk_model_path = Path(risk_model_dir)
+            risk_model_files = sorted(risk_model_path.glob("lightgbm_fold_*.pkl"))
+            
+            if not risk_model_files:
+                raise FileNotFoundError(f"No risk models found in {risk_model_dir}")
+            
+            logger.info(f"Loading {len(risk_model_files)} risk models...")
+            risk_models = []
+            for model_file in risk_model_files:
+                with open(model_file, 'rb') as f:
+                    risk_models.append(pickle.load(f))
+            
+            # Get risk feature columns
+            risk_feature_path = Path("results/feature_selection/selected_features_risk_optimized.csv")
+            if not risk_feature_path.exists():
+                raise FileNotFoundError(f"Risk feature list not found: {risk_feature_path}")
+            
+            risk_features = pd.read_csv(risk_feature_path)['feature'].tolist()
+            
+            # Add missing features with 0
+            for col in risk_features:
+                if col not in test_features.columns:
+                    test_features[col] = 0.0
+            
+            # Ensemble prediction
+            X_test_risk = test_features[risk_features]
+            sigma_hat_test = np.mean([model.predict(X_test_risk) for model in risk_models], axis=0)
+            logger.info(f"✓ Risk predictions: range=[{sigma_hat_test.min():.6f}, {sigma_hat_test.max():.6f}]")
+            
+            # Apply position mapping strategy
+            logger.info(f"\n6.6 Applying position strategy: {best_strategy_config['strategy_name']}...")
+            
+            if best_strategy_config['strategy_name'] == 'Sharpe Scaling':
+                mapper = SharpeScalingMapper(config_path=self.config_path)
+                params = best_strategy_config['parameters']
+                allocations = mapper.map_positions(
+                    r_hat_test,
+                    sigma_hat_test,
+                    target_sharpe=params['target_sharpe'],
+                    max_position=params['max_position'],
+                    min_position=params['min_position']
+                )
+            
+            elif best_strategy_config['strategy_name'] == 'Quantile Binning':
+                mapper = QuantileBinningMapper(config_path=self.config_path)
+                params = best_strategy_config['parameters']
+                
+                # Fit mapper on test predictions (using quantiles)
+                mapper.fit(r_hat_test, sigma_hat_test, allocations=params['allocations'])
+                allocations = mapper.map_positions(r_hat_test, sigma_hat_test)
+            
+            else:
+                raise ValueError(f"Unknown strategy: {best_strategy_config['strategy_name']}")
+            
+            logger.info(f"✓ Allocations: range=[{allocations.min():.4f}, {allocations.max():.4f}]")
+            logger.info(f"  Mean: {allocations.mean():.4f}, Std: {allocations.std():.4f}")
+            
+            # Create submission
+            submission = pd.DataFrame({
+                'date_id': test_features['date_id'].astype(int),
+                'allocation': allocations.astype(float)
+            })
+            
+            # Validate submission
+            logger.info("\n6.7 Validating submission...")
+            assert list(submission.columns) == ['date_id', 'allocation'], "Wrong column names!"
+            assert submission['allocation'].isna().sum() == 0, "Contains NaN values!"
+            assert (submission['allocation'] >= 0).all(), "Contains values < 0!"
+            assert (submission['allocation'] <= 2).all(), "Contains values > 2!"
+            logger.info("✓ Validation passed")
+            
+            # Save submission
+            output_path = Path("submissions/submission.parquet")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            submission.to_parquet(output_path, index=False, engine='pyarrow')
+            
+            logger.info(f"\n✓ Submission saved to {output_path}")
+            logger.info(f"  Rows: {len(submission)}")
+            logger.info(f"  Allocation stats:")
+            logger.info(f"    Min: {submission['allocation'].min():.4f}")
+            logger.info(f"    Max: {submission['allocation'].max():.4f}")
+            logger.info(f"    Mean: {submission['allocation'].mean():.4f}")
+            logger.info(f"    Median: {submission['allocation'].median():.4f}")
+            
+            self.results['test_predictions'] = {
+                'n_samples': len(submission),
+                'allocation_mean': float(submission['allocation'].mean()),
+                'allocation_std': float(submission['allocation'].std()),
+                'allocation_min': float(submission['allocation'].min()),
+                'allocation_max': float(submission['allocation'].max()),
+                'output_path': str(output_path)
+            }
+            
+            return submission
+    
     def run_full_optimization(
         self,
         return_model_dir: str = "artifacts/models_optimized",
         risk_model_dir: str = "artifacts/models_risk_optimized",
         n_trials_sharpe: int = 100,
-        n_trials_quantile: int = 100
+        n_trials_quantile: int = 100,
+        predict_test: bool = False
     ) -> Dict:
         """
         Run the complete position strategy optimization pipeline.
@@ -727,6 +917,14 @@ class PositionStrategyOptimizer:
             # Step 5: Save best strategy
             best_strategy = self.step5_save_best_strategy(comparison_df)
             
+            # Step 6: Predict on test data (optional)
+            if predict_test:
+                submission = self.step6_predict_test(
+                    return_model_dir,
+                    risk_model_dir,
+                    best_strategy
+                )
+            
             # Final summary
             end_time = pd.Timestamp.now()
             duration = (end_time - start_time).total_seconds()
@@ -737,6 +935,9 @@ class PositionStrategyOptimizer:
             logger.info(f"Total time: {duration:.1f}s")
             logger.info(f"Best strategy: {best_strategy['strategy_name']}")
             logger.info(f"Best score: {best_strategy['score']:.6f}")
+            
+            if predict_test:
+                logger.info(f"✓ Submission generated: {self.results['test_predictions']['output_path']}")
             
             self.results['duration_seconds'] = duration
             self.results['status'] = 'success'
@@ -788,12 +989,16 @@ def main():
         return_model_dir="artifacts/models_optimized",
         risk_model_dir="artifacts/models_risk_optimized",
         n_trials_sharpe=100,      # Adjust based on time/resources
-        n_trials_quantile=100     # Adjust based on time/resources
+        n_trials_quantile=100,    # Adjust based on time/resources
+        predict_test=True         # Generate submission.parquet
     )
     
     logger.info("\n✅ Position strategy optimization complete!")
     logger.info(f"Best strategy: {results['best_strategy']['strategy_name']}")
     logger.info(f"Best score: {results['best_strategy']['score']:.6f}")
+    
+    if 'test_predictions' in results:
+        logger.info(f"✅ Submission file created: {results['test_predictions']['output_path']}")
 
 
 if __name__ == "__main__":

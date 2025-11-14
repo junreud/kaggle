@@ -73,6 +73,9 @@ model_return:
     random_state: 42
     verbosity: -1
     early_stopping_rounds: 50
+    # GPU settings (auto-configured based on environment)
+    device: "cpu"  # Will be overridden: 'gpu' (Kaggle), 'mps' (Mac), 'cpu' (fallback)
+    gpu_use_dp: false
   
   catboost:
     iterations: 1000
@@ -228,6 +231,9 @@ risk:
       metric: "rmse"
       verbosity: -1
       random_state: 42
+      # GPU settings (auto-configured based on environment)
+      device: "cpu"  # Will be overridden: 'gpu' (Kaggle), 'mps' (Mac), 'cpu' (fallback)
+      gpu_use_dp: false
       # Risk-specific parameters
       min_data_in_leaf: 20
       lambda_l1: 0.1

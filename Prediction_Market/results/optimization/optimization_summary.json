@@ -1,12 +1,14 @@
 {
   "preprocessing": {
-    "shape": "(9021, 184)",
+    "shape": "(9021, 98)",
     "metadata": "<dict>"
   },
   "feature_engineering": {
-    "original_features": 182,
+    "original_features": 100,
     "engineered_features": 1497,
-    "total_features": 1679
+    "total_features": 1597,
+    "time_features_added": true,
+    "regime_features_added": true
   },
   "feature_selection": {
     "method": "correlation",
@@ -55,7 +57,7 @@
       "M9_zscore_5",
       "M9_zscore_20",
       "V7_dev_10",
-      "D1",
+      "D2",
       "I2_div_P10",
       "V13_zscore_40",
       "P2_accel",

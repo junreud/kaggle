@@ -138,31 +138,31 @@ class DataLoader:
         window: int = 60
     ) -> Tuple[pd.DataFrame, Dict]:
         """
-        Normalize features for stable distribution (Competition Best Practice).
+        안정적인 분포를 위한 특성 정규화 (Competition Best Practice).
         
-        Methods:
-        - 'rank_gauss': Rank transformation → Gaussian distribution (MOST ROBUST)
-        - 'log1p': log(1+x) transformation for skewed features
-        - 'rolling_zscore': (x - rolling_mean) / rolling_std (time-series aware)
+        정규화 방법:
+        - 'rank_gauss': 순위 변환 → 가우시안 분포 (가장 강건함)
+        - 'log1p': log(1+x) 변환 (왜도가 있는 특성용)
+        - 'rolling_zscore': (x - 이동평균) / 이동표준편차 (시계열 인식)
         
-        Competition guidelines:
-        - Rank-Gauss is preferred for most competitions (robust to outliers)
-        - Log1p for naturally skewed features (prices, volumes)
-        - Rolling z-score for regime-changing time series
+        Competition 가이드라인:
+        - Rank-Gauss가 대부분의 대회에서 선호됨 (이상치에 강건함)
+        - Log1p는 자연적으로 왜곡된 특성용 (가격, 거래량 등)
+        - Rolling z-score는 국면 변화가 있는 시계열용
         
         Args:
-            df: DataFrame to normalize
-            train_df: Training data for fitting (optional)
-            method: Normalization method
-            by_group: Whether to normalize by feature group
-            window: Rolling window size (for rolling_zscore)
+            df: 정규화할 데이터프레임
+            train_df: 학습 데이터 (fitting용, 선택사항)
+            method: 정규화 방법
+            by_group: 특성 그룹별로 정규화할지 여부
+            window: 이동 윈도우 크기 (rolling_zscore용)
             
         Returns:
-            Tuple of (normalized DataFrame, normalization metadata)
+            Tuple of (정규화된 DataFrame, 정규화 메타데이터)
             
         Example:
             >>> df_norm, norm_meta = loader.normalize_features(train_df, method='rank_gauss')
-            >>> # Apply same transformation to test data
+            >>> # 테스트 데이터에 동일한 변환 적용
             >>> test_norm, _ = loader.normalize_features(test_df, train_df=train_df, method='rank_gauss')
         """
         from scipy.stats import rankdata
@@ -250,20 +250,22 @@ class DataLoader:
         window: int = 60
     ) -> pd.DataFrame:
         """
-        Winsorize outliers using TIME-SERIES AWARE methods.
-        
-        Improved methods for time series:
-        - 'rolling': Rolling window percentiles (local baseline)
-        - 'global': Global percentiles (legacy method)
+        시계열 인식 방법을 사용한 이상치 윈저라이제이션. 
+        너무 이상하리만치 큰 데이터, 작은 데이터를 만났을 경우 
+        아예 삭제하지않고 조정해서 과적합 되지 않게함.
+
+        시계열을 위한 개선된 방법:
+        - 'rolling': 이동 윈도우 백분위수 (지역 기준선)
+        - 'global': 전역 백분위수 (레거시 방법)
         
         Args:
-            df: DataFrame to process
-            limits: (lower, upper) percentile limits
-            method: 'rolling' or 'global'
-            window: Rolling window size (for rolling method)
+            df: 처리할 데이터프레임
+            limits: (하한, 상한) 백분위수 한계
+            method: 'rolling' 또는 'global'
+            window: 이동 윈도우 크기 (rolling 방법용)
             
         Returns:
-            DataFrame with winsorized values
+            윈저라이제이션이 적용된 데이터프레임
         """
         df = df.copy()
         
@@ -279,10 +281,10 @@ class DataLoader:
                 if df[col].notna().sum() > 0:
                     # Calculate rolling percentiles
                     rolling_lower = df[col].rolling(
-                        window=window, 
-                        min_periods=20, 
-                        center=False
-                    ).quantile(limits[0])
+                        window=window,    # 60일 윈도우
+                        min_periods=20,   # 최소 20일 있으면 계산
+                        center=False      # 과거 데이터만 사용 (미래 보지 않음)
+                    ).quantile(limits[0]) # 하위 1% 백분위수
                     
                     rolling_upper = df[col].rolling(
                         window=window, 
@@ -305,117 +307,6 @@ class DataLoader:
         
         else:
             raise ValueError(f"Unknown method: {method}. Use 'rolling' or 'global'")
-        
-        return df
-    
-    def add_regime_indicators(
-        self,
-        df: pd.DataFrame,
-        crisis_periods: Optional[List[Tuple[int, int]]] = None,
-        auto_detect: bool = True,
-        vol_threshold: float = 2.0
-    ) -> pd.DataFrame:
-        """
-        Add regime dummy variables for crisis/high-volatility periods (Competition Best Practice).
-        
-        Crisis periods (2008, 2020, etc.) have different market dynamics.
-        Adding regime indicators helps models adapt to these structural changes.
-        
-        Methods:
-        1. Manual: Specify known crisis periods via crisis_periods parameter
-        2. Auto: Detect high-volatility regimes automatically
-        
-        Args:
-            df: DataFrame with 'forward_returns' and 'date_id' columns
-            crisis_periods: List of (start_date_id, end_date_id) tuples for crisis periods
-                Example: [(2008, 2009), (2020, 2020)]
-            auto_detect: Whether to auto-detect high volatility regimes
-            vol_threshold: Volatility threshold for auto-detection (default: 2.0x median)
-            
-        Returns:
-            DataFrame with regime indicator columns added
-            
-        Example:
-            >>> df = loader.add_regime_indicators(
-            >>>     df,
-            >>>     crisis_periods=[(2008, 2009), (2020, 2020)],
-            >>>     auto_detect=True
-            >>> )
-            >>> # Adds: regime_crisis_2008_2009, regime_crisis_2020_2020, regime_high_vol
-        """
-        df = df.copy()
-        
-        # Manual crisis periods
-        if crisis_periods:
-            for start, end in crisis_periods:
-                col_name = f"regime_crisis_{start}_{end}"
-                df[col_name] = 0
-                
-                # Mark crisis period
-                crisis_mask = (df['date_id'] >= start) & (df['date_id'] <= end)
-                df.loc[crisis_mask, col_name] = 1
-                
-                logger.info(f"Added regime indicator: {col_name} ({crisis_mask.sum()} periods)")
-        
-        # Auto-detect high volatility regimes
-        if auto_detect and 'forward_returns' in df.columns:
-            # Calculate rolling volatility
-            rolling_vol = df['forward_returns'].rolling(window=60, min_periods=20).std()
-            vol_median = rolling_vol.median()
-            
-            # High volatility regime
-            df['regime_high_vol'] = 0
-            high_vol_mask = rolling_vol > (vol_threshold * vol_median)
-            df.loc[high_vol_mask, 'regime_high_vol'] = 1
-            
-            logger.info(f"Added auto-detected regime: regime_high_vol ({high_vol_mask.sum()} periods)")
-        
-        return df
-    
-    def add_missing_indicators(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 0.1
-    ) -> pd.DataFrame:
-        """
-        Add binary indicators for features with high missing rate (Competition Best Practice).
-        
-        Missing pattern itself can be a signal:
-        - Old features have more initial missing (data collection start date varies)
-        - Missing rate correlates with market regimes
-        - Missing can indicate data quality issues
-        
-        Args:
-            df: DataFrame to process
-            threshold: Missing rate threshold (default: 0.1 = 10%)
-                Only create indicators for features with >10% missing
-            
-        Returns:
-            DataFrame with missing indicator columns added
-            
-        Example:
-            >>> df = loader.add_missing_indicators(df, threshold=0.1)
-            >>> # Adds: missing_E7, missing_V10, missing_S3, etc.
-        """
-        df = df.copy()
-        
-        # Get numeric columns (exclude date_id and target)
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        exclude_cols = ['date_id', 'forward_returns', 'risk_free_rate',
-                       'market_forward_excess_returns', 'is_scored']
-        numeric_cols = [c for c in numeric_cols if c not in exclude_cols]
-        
-        indicators_added = 0
-        
-        for col in numeric_cols:
-            missing_rate = df[col].isna().sum() / len(df)
-            
-            if missing_rate > threshold:
-                indicator_col = f"missing_{col}"
-                df[indicator_col] = df[col].isna().astype(int)
-                indicators_added += 1
-        
-        logger.info(f"Added {indicators_added} missing indicators (threshold={threshold:.1%})")
         
         return df
     
@@ -511,20 +402,20 @@ class DataLoader:
         method: str = 'representative'
     ) -> pd.DataFrame:
         """
-        Reduce feature redundancy using clustering results.
+        클러스터링 결과를 사용하여 특성 중복성을 줄입니다.
         
-        Methods:
-        - 'representative': Keep only the feature with highest variance in each cluster
-        - 'mean': Replace cluster with mean of z-scored features
-        - 'pca': Replace cluster with first principal component (not implemented yet)
+        방법:
+        - 'representative': 각 클러스터에서 가장 높은 분산을 가진 특성만 유지
+        - 'mean': 클러스터를 z-점수화된 특성들의 평균으로 대체
+        - 'pca': 클러스터를 첫 번째 주성분으로 대체 (아직 구현되지 않음)
         
         Args:
-            df: DataFrame to process
-            clusters: Output from detect_feature_clusters()
-            method: Reduction method
+            df: 처리할 데이터프레임
+            clusters: detect_feature_clusters()의 출력 결과
+            method: 축소 방법
             
         Returns:
-            DataFrame with reduced features
+            축소된 특성을 가진 데이터프레임
             
         Example:
             >>> clusters = loader.detect_feature_clusters(train_df, threshold=0.90)
@@ -581,25 +472,25 @@ class DataLoader:
         variance_threshold: float = 0.95
     ) -> Tuple[pd.DataFrame, Dict]:
         """
-        Apply PCA within each feature group for dimensionality reduction.
-        
-        This reduces the number of features while preserving most of the variance,
-        helping to prevent overfitting and improve model generalization.
-        
+        차원 축소를 위해 각 특성 그룹 내에서 PCA를 적용합니다.
+
+        이 방법은 대부분의 분산을 유지하면서 특성의 수를 줄여,
+        과적합을 방지하고 모델의 일반화 성능을 향상시킵니다.
+
         Args:
-            df: DataFrame to transform
-            train_df: Training data for fitting PCA (optional)
-            n_components: Number of components per group (optional)
-                Example: {'M': 3, 'V': 2} means 3 components for M group, 2 for V
-            variance_threshold: Cumulative variance to retain (default: 0.95)
+            df: 변환할 데이터프레임
+            train_df: PCA 학습용 학습 데이터 (선택사항)
+            n_components: 그룹별 컴포넌트 수 (선택사항)
+                예시: {'M': 3, 'V': 2}는 M 그룹에 3개, V 그룹에 2개의 컴포넌트를 의미
+            variance_threshold: 유지할 누적 분산 비율 (기본값: 0.95)
             
         Returns:
-            Tuple of (transformed DataFrame, PCA models dictionary)
+            Tuple of (변환된 데이터프레임, PCA 모델 딕셔너리)
             
         Example:
             >>> n_components = {'M': 5, 'V': 3, 'E': 4}
             >>> df_pca, pca_models = loader.apply_group_pca(train_df, n_components=n_components)
-            >>> # Apply same transformation to test data
+            >>> # 테스트 데이터에 동일한 변환 적용
             >>> test_pca, _ = loader.apply_group_pca(test_df, train_df=train_df, n_components=n_components)
         """
         from sklearn.decomposition import PCA
@@ -678,21 +569,21 @@ class DataLoader:
         event_calendar: pd.DataFrame
     ) -> pd.DataFrame:
         """
-        Add binary event indicators for important market events.
-        
-        Creates dummy variables for event windows (before and after events)
-        to capture event-driven price movements.
-        
+        중요한 시장 이벤트에 대한 이진 이벤트 지표를 추가합니다.
+
+        이벤트 윈도우(이벤트 전후)에 대한 더미 변수를 생성하여
+        이벤트 중심의 가격 변동을 포착합니다.
+
         Args:
-            df: DataFrame with date_id column
-            event_calendar: DataFrame with columns:
-                - event_date: date_id of event
-                - event_type: Type of event ('FOMC', 'earnings', 'CPI', etc.)
-                - window_before: Days before event to mark (default: 0)
-                - window_after: Days after event to mark (default: 0)
+            df: date_id 컬럼이 있는 데이터프레임
+            event_calendar: 다음 컬럼들을 포함하는 데이터프레임:
+                - event_date: 이벤트의 date_id
+                - event_type: 이벤트 유형 ('FOMC', 'earnings', 'CPI' 등)
+                - window_before: 이벤트 전에 표시할 일수 (기본값: 0)
+                - window_after: 이벤트 후에 표시할 일수 (기본값: 0)
             
         Returns:
-            DataFrame with event dummy columns
+            이벤트 더미 컬럼이 추가된 데이터프레임
             
         Example:
             >>> event_calendar = pd.DataFrame({
@@ -702,7 +593,7 @@ class DataLoader:
             >>>     'window_after': [1, 1, 1]
             >>> })
             >>> df_events = loader.add_event_dummies(df, event_calendar)
-            >>> # Creates columns: event_FOMC, event_CPI
+            >>> # 생성되는 컬럼: event_FOMC, event_CPI
         """
         df = df.copy()
         
@@ -743,21 +634,21 @@ class DataLoader:
         significance: float = 0.05
     ) -> pd.DataFrame:
         """
-        Test Granger causality between features and target.
+        특성(features)과 타겟(target) 간의 그레인저 인과관계(Granger causality)를 검증합니다.
         
-        Granger causality tests whether past values of feature X help predict
-        future values of Y beyond what Y's own past values can predict.
+        그레인저 인과관계 검정은 특성 X의 과거 값이 Y의 과거 값만으로 예측하는 것보다
+        Y의 미래 값을 더 잘 예측하는 데 도움이 되는지를 테스트합니다.
         
-        This helps identify which features have predictive power with time lags.
+        이를 통해 어떤 특성이 시간 지연(time lag)을 가지고 예측력을 가지는지 식별할 수 있습니다.
         
         Args:
-            df: DataFrame to analyze (must be sorted by date_id)
-            target: Target variable name
-            max_lag: Maximum lag to test (default: 5)
-            significance: P-value threshold for significance (default: 0.05)
+            df: 분석할 데이터프레임 (date_id로 정렬되어 있어야 함)
+            target: 타겟 변수 이름
+            max_lag: 테스트할 최대 시차(lag) (기본값: 5)
+            significance: 유의성 판단을 위한 P-값 임계값 (기본값: 0.05)
             
         Returns:
-            DataFrame with causality test results, sorted by significance
+            인과관계 검정 결과를 담은 데이터프레임, 유의성 순으로 정렬됨
             
         Example:
             >>> causality_results = loader.analyze_granger_causality(
@@ -765,7 +656,7 @@ class DataLoader:
             >>>     target='forward_returns',
             >>>     max_lag=5
             >>> )
-            >>> # Shows which features Granger-cause the target
+            >>> # 어떤 특성이 타겟에 그레인저 인과관계를 가지는지 보여줍니다
         """
         from statsmodels.tsa.stattools import grangercausalitytests
         
@@ -839,29 +730,29 @@ class DataLoader:
         weight_map: Optional[Dict[str, float]] = None
     ) -> pd.Series:
         """
-        Calculate sample weights based on volatility regime.
+        변동성 국면에 기반한 샘플 가중치를 계산합니다.
         
-        High volatility periods often contain more noise than signal,
-        so we down-weight these samples during training.
+        고변동성 기간은 종종 시그널보다 노이즈를 더 많이 포함하므로,
+        학습 시 이러한 샘플의 가중치를 낮춥니다.
         
-        Default weights:
-        - Low Vol: 1.0 (standard weight)
-        - Normal: 1.0
-        - High Vol: 0.5 (reduced weight due to noise)
+        기본 가중치:
+        - 저변동성: 1.0 (표준 가중치)
+        - 정상: 1.0
+        - 고변동성: 0.5 (노이즈로 인해 감소된 가중치)
         
         Args:
-            df: DataFrame with regime column
-            regime_col: Name of regime column (default: 'regime')
-            weight_map: Custom weight mapping (optional)
-                Example: {'low_vol': 1.0, 'normal': 1.0, 'high_vol': 0.3}
+            df: 국면 컬럼이 있는 데이터프레임
+            regime_col: 국면 컬럼 이름 (기본값: 'regime')
+            weight_map: 사용자 정의 가중치 매핑 (선택사항)
+            예시: {'low_vol': 1.0, 'normal': 1.0, 'high_vol': 0.3}
             
         Returns:
-            Series of sample weights (same length as df)
+            샘플 가중치 시리즈 (df와 동일한 길이)
             
         Example:
             >>> df = loader.detect_regime_changes(df)
             >>> sample_weights = loader.calculate_regime_weights(df)
-            >>> # Use in model training: model.fit(X, y, sample_weight=sample_weights)
+            >>> # 모델 학습에 사용: model.fit(X, y, sample_weight=sample_weights)
         """
         if regime_col not in df.columns:
             logger.warning(f"Regime column '{regime_col}' not found. Returning uniform weights.")
@@ -887,12 +778,6 @@ class DataLoader:
         self,
         df: pd.DataFrame,
         train_df: Optional[pd.DataFrame] = None,
-        # Competition best practices
-        add_missing_indicators: bool = False,
-        missing_threshold: float = 0.1,
-        add_regime_indicators: bool = False,
-        crisis_periods: Optional[List[Tuple[int, int]]] = None,
-        auto_detect_regime: bool = True,
         # Outlier handling
         handle_outliers: bool = True,
         winsorize_limits: Tuple[float, float] = (0.001, 0.001),
@@ -907,89 +792,71 @@ class DataLoader:
         window: int = 60
     ) -> Tuple[pd.DataFrame, Dict]:
         """
-        Complete TIME-SERIES AWARE preprocessing pipeline (Competition Best Practices).
+        완전한 시계열 기반 전처리 파이프라인 (Competition Best Practices).
+
+        파이프라인 단계:
+        1. 극단값 제거 (winsorization) - 상하위 0.1~0.5% 절삭
+        2. 특성 정규화 (선택) - Rank-Gauss, Log1p, Rolling Z-score
+        3. 특성 스케일링 (선택) - Robust 또는 Standard 스케일링
+
+        Competition 모범 사례:
+        ✅ 행 삭제 금지 (시계열 연속성 유지)
+        ✅ 극단값 절삭 (0.1~0.5% winsorization)
+        ✅ 분포 정규화 (rank-gauss 선호)
         
-        Pipeline stages:
-        1. Add missing indicators (optional) - Missing pattern as signal
-        2. Add regime indicators (optional) - Crisis periods (2008, 2020, etc.)
-        3. Clip extreme values (winsorization) - 0.1~0.5% percentile
-        4. Normalize features (optional) - Rank-Gauss, Log1p, Rolling Z-score
-        5. Scale features (optional) - Robust or Standard scaling
-        
-        Competition best practices:
-        ✅ Never delete rows (time series continuity)
-        ✅ Clip extreme values (0.1~0.5% winsorization)
-        ✅ Normalize distribution (rank-gauss preferred)
-        ✅ Add regime dummies (2008, 2020 crisis periods)
-        ✅ Use missing pattern as signal (missing indicators)
-        
+        Note:
+            Feature Engineering (시간 구간, 국면 지표 등)은 
+            FeatureEngineering 클래스의 create_time_period_features(), 
+            create_market_regime_features()를 사용하세요.
+
         Args:
-            df: DataFrame to process (must be sorted by date_id)
-            train_df: Training data for fitting (optional)
+            df: 처리할 데이터프레임 (date_id로 정렬되어 있어야 함)
+            train_df: 학습 데이터 (fitting용, 선택사항)
             
-            # Competition best practices
-            add_missing_indicators: Add binary indicators for high-missing features
-            missing_threshold: Missing rate threshold (default: 0.1 = 10%)
-            add_regime_indicators: Add crisis/high-vol regime dummies
-            crisis_periods: List of (start_date_id, end_date_id) for crisis periods
-            auto_detect_regime: Auto-detect high volatility regimes
+            # 이상치 처리
+            handle_outliers: 이상치 winsorize 여부
+            winsorize_limits: 백분위수 한계 (기본값: 0.001 = 0.1%)
+            winsorize_method: 'rolling' (이동 윈도우) 또는 'global' (전역)
             
-            # Outlier handling
-            handle_outliers: Whether to winsorize outliers
-            winsorize_limits: Percentile limits (default: 0.001 = 0.1%)
-            winsorize_method: 'rolling' or 'global'
+            # 정규화 (Normalization)
+            normalize: 특성 정규화 여부
+            normalize_method: 'rank_gauss', 'log1p', 'rolling_zscore' 중 선택
             
-            # Normalization
-            normalize: Whether to normalize features
-            normalize_method: 'rank_gauss', 'log1p', or 'rolling_zscore'
+            # 스케일링 (Scaling)
+            scale: 특성 스케일링 여부
+            scale_method: 'robust' 또는 'standard'
             
-            # Scaling
-            scale: Whether to scale features
-            scale_method: 'robust' or 'standard'
-            
-            # Window size
-            window: Rolling window size for time-series methods
+            # 윈도우 크기
+            window: 시계열 방법에 사용할 이동 윈도우 크기
             
         Returns:
-            Tuple of (processed DataFrame, metadata dict)
+            Tuple of (처리된 DataFrame, metadata 딕셔너리)
             
         Example:
+            >>> # 전처리만
             >>> train_processed, metadata = loader.preprocess_timeseries(
             >>>     train_df,
-            >>>     add_missing_indicators=True,
-            >>>     add_regime_indicators=True,
-            >>>     crisis_periods=[(2008, 2009), (2020, 2020)],
             >>>     handle_outliers=True,
-            >>>     winsorize_limits=(0.001, 0.001),  # 0.1% clip
+            >>>     winsorize_limits=(0.001, 0.001),
             >>>     normalize=True,
             >>>     normalize_method='rank_gauss',
             >>>     scale=True
             >>> )
+            >>> 
+            >>> # Feature Engineering은 별도로
+            >>> from src.features import FeatureEngineering
+            >>> fe = FeatureEngineering()
+            >>> train_processed = fe.create_time_period_features(train_processed)
+            >>> train_processed = fe.create_market_regime_features(train_processed)
         """
         df = df.copy()
         metadata = {}
         
         logger.info("="*60)
-        logger.info("COMPETITION-READY PREPROCESSING PIPELINE")
+        logger.info("PREPROCESSING PIPELINE")
         logger.info("="*60)
         
-        # Step 1: Add missing indicators (Competition Best Practice)
-        if add_missing_indicators:
-            with Timer("Adding missing indicators", logger):
-                df = self.add_missing_indicators(df, threshold=missing_threshold)
-                metadata['missing_indicators_added'] = True
-        
-        # Step 2: Add regime indicators (Competition Best Practice)
-        if add_regime_indicators:
-            with Timer("Adding regime indicators", logger):
-                df = self.add_regime_indicators(
-                    df,
-                    crisis_periods=crisis_periods,
-                    auto_detect=auto_detect_regime
-                )
-                metadata['regime_indicators_added'] = True
-        
-        # Step 3: Clip extreme values (Competition Best Practice)
+        # Step 1: Clip extreme values (Competition Best Practice)
         if handle_outliers:
             with Timer("Winsorizing outliers", logger):
                 df = self.winsorize_outliers(
@@ -1000,7 +867,7 @@ class DataLoader:
                 )
                 metadata['outliers_handled'] = True
         
-        # Step 4: Normalize features (Competition Best Practice)
+        # Step 2: Normalize features (Competition Best Practice)
         if normalize:
             with Timer("Normalizing features", logger):
                 df, norm_meta = self.normalize_features(
@@ -1013,7 +880,7 @@ class DataLoader:
                 metadata['normalization'] = norm_meta
                 metadata['normalized'] = True
         
-        # Step 5: Scale features
+        # Step 3: Scale features
         if scale:
             with Timer("Scaling features", logger):
                 df, scalers = self.scale_features(
@@ -1038,20 +905,20 @@ class DataLoader:
         vol_threshold: Tuple[float, float] = (0.5, 1.5)
     ) -> pd.Series:
         """
-        Detect market regime changes (high volatility / low volatility periods).
+        시장 국면 변화를 감지합니다 (고변동성 / 저변동성 기간).
         
-        Useful for:
-        - Adaptive preprocessing (different strategies per regime)
-        - Risk management
-        - Model ensemble weighting
+        다음 용도로 유용합니다:
+        - 적응형 전처리 (국면별 다른 전략 적용)
+        - 위험 관리
+        - 모델 앙상블 가중치 조정
         
         Args:
-            df: DataFrame with 'forward_returns' column
-            vol_window: Window for volatility calculation
-            vol_threshold: (low_multiplier, high_multiplier) for regime classification
+            df: 'forward_returns' 컬럼이 있는 데이터프레임
+            vol_window: 변동성 계산을 위한 윈도우 크기
+            vol_threshold: 국면 분류를 위한 (저변동성_배수, 고변동성_배수) 튜플
             
         Returns:
-            Series with regime labels: 'low_vol', 'normal', 'high_vol'
+            국면 레이블이 포함된 시리즈: 'low_vol', 'normal', 'high_vol'
         """
         # Calculate rolling volatility
         returns_vol = df['forward_returns'].rolling(window=vol_window, min_periods=20).std()
@@ -1157,24 +1024,24 @@ def calculate_benchmark_score(
     return_details: bool = True
 ) -> Union[float, Tuple[float, pd.Series, Dict]]:
     """
-    Calculate benchmark score with allocation=1.0 (market-equivalent strategy).
-    
-    Metric: Modified Sharpe Ratio with volatility penalty
-    
-    score = (mean(strategy_returns) / std(strategy_returns)) / vol_penalty
-    
-    where:
-    - strategy_returns = allocation × forward_returns
-    - vol_penalty = 1 + max(0, (strategy_vol / market_vol) - 1.2)
-    
+    allocation=1.0(시장 대등 전략)으로 벤치마크 점수를 계산합니다.
+
+    지표: 변동성 페널티가 적용된 수정 샤프 비율
+
+    score = (평균(전략_수익률) / 표준편차(전략_수익률)) / 변동성_페널티
+
+    여기서:
+    - 전략_수익률 = 할당량 × 선도_수익률
+    - 변동성_페널티 = 1 + max(0, (전략_변동성 / 시장_변동성) - 1.2)
+
     Args:
-        df: DataFrame with 'forward_returns' column
-        allocation: Fixed allocation value (0 to 2)
-        return_details: Whether to return detailed metrics
+        df: 'forward_returns' 컬럼이 있는 데이터프레임
+        allocation: 고정 할당 값 (0에서 2 사이)
+        return_details: 상세 지표를 반환할지 여부
         
     Returns:
-        If return_details=False: benchmark_score
-        If return_details=True: (benchmark_score, strategy_returns, metrics_dict)
+        return_details=False인 경우: benchmark_score
+        return_details=True인 경우: (benchmark_score, strategy_returns, metrics_dict)
     """
     # Validate allocation
     if not 0 <= allocation <= 2:
@@ -1266,17 +1133,10 @@ if __name__ == "__main__":
     print("COMPETITION-READY PREPROCESSING PIPELINE TEST")
     print("="*60)
     
-    # Test the complete preprocessing pipeline with all new features
+    # Test the complete preprocessing pipeline
     train_processed, metadata = loader.preprocess_timeseries(
         train_df,
         train_df=None,  # No separate train data (will use self for fitting)
-        
-        # Competition best practices
-        add_missing_indicators=True,
-        missing_threshold=0.1,
-        add_regime_indicators=True,
-        crisis_periods=None,  # Will auto-detect
-        auto_detect_regime=True,
         
         # Outlier handling (0.1% clip - competition best practice)
         handle_outliers=True,
@@ -1296,21 +1156,11 @@ if __name__ == "__main__":
     )
     
     print("\n=== Preprocessing Metadata ===")
-    print(f"Missing indicators added: {metadata.get('missing_indicators_added', False)}")
-    print(f"Regime indicators added: {metadata.get('regime_indicators_added', False)}")
     print(f"Outliers handled: {metadata.get('outliers_handled', False)}")
     print(f"Normalized: {metadata.get('normalized', False)}")
     if metadata.get('normalized'):
         print(f"  Method: {metadata['normalization']['method']}")
     print(f"Scaled: {metadata.get('scaled', False)}")
-    
-    print("\n=== New Columns Added ===")
-    original_cols = set(train_df.columns)
-    new_cols = set(train_processed.columns) - original_cols
-    if new_cols:
-        print(f"Added {len(new_cols)} new columns:")
-        for col in sorted(new_cols):
-            print(f"  - {col}")
     
     print("\n" + "="*60)
     print("BENCHMARK CALCULATION")
